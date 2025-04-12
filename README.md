@@ -1,1 +1,0 @@
-# ROS2_autonomous_racing
