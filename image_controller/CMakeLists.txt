@@ -12,12 +12,22 @@ find_package(rosbag2_cpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosbag2_transport REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
 add_executable(image_recorder src/image_recorder.cpp)
 ament_target_dependencies(image_recorder rclcpp rosbag2_cpp sensor_msgs)
 
 install(TARGETS
   image_recorder
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+add_executable(image_reader src/image_reader.cpp)
+ament_target_dependencies(image_reader rclcpp rosbag2_transport sensor_msgs cv_bridge OpenCV)
+
+install(TARGETS
+  image_reader
   DESTINATION lib/${PROJECT_NAME}
 )
 

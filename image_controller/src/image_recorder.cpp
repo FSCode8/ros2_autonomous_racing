@@ -5,7 +5,7 @@
 
 using std::placeholders::_1;
 
-class SimpleBagRecorder : public rclcpp::Node
+class BagRecorder : public rclcpp::Node
 {
 public:
   BagRecorder(const std::string & bag_name)
