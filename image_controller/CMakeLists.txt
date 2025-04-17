@@ -23,11 +23,11 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(image_reader src/image_reader.cpp)
-ament_target_dependencies(image_reader rclcpp rosbag2_transport sensor_msgs cv_bridge OpenCV)
+add_executable(image_bag_reader src/image_bag_reader.cpp)
+ament_target_dependencies(image_bag_reader rclcpp rosbag2_transport sensor_msgs)
 
 install(TARGETS
-  image_reader
+  image_bag_reader
   DESTINATION lib/${PROJECT_NAME}
 )
 

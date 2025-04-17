@@ -4,9 +4,6 @@
 #include <memory>
 #include <string>
 
-#include <opencv2/opencv.hpp>
-#include <cv_bridge/cv_bridge.h> 
-
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/serialization.hpp"
 #include "rosbag2_transport/reader_writer_factory.hpp"
@@ -21,15 +18,13 @@ class PlaybackNode : public rclcpp::Node
     : Node("playback_node")
     {
       publisher_ = this->create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
-      /*
       timer_ = this->create_wall_timer(
           100ms, std::bind(&PlaybackNode::timer_callback, this));
-      */
+
       rosbag2_storage::StorageOptions storage_options;
       storage_options.uri = "src/" + bag_filename;
       reader_ = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
       reader_->open(storage_options);
-      timer_callback();
     }
 
   private:
@@ -48,22 +43,7 @@ class PlaybackNode : public rclcpp::Node
         serialization_.deserialize_message(&serialized_msg, ros_msg.get());
 
         publisher_->publish(*ros_msg);
-        //std::cout << '(' << ros_msg->height << ", " << ros_msg->width << ")\n";
-
-        try {
-          // Convert ROS Image message to OpenCV image
-          cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(ros_msg, sensor_msgs::image_encodings::BGR8);
-          cv::Mat image = cv_ptr->image;
-
-          // Display the image in a window
-          cv::imshow("Image Viewer", image);
-          std::cout << "Image published and displayed." << std::endl;
-
-          // Wait for a key press before closing the window
-          cv::waitKey(0);
-        } catch (const cv_bridge::Exception& e) {
-          std::cerr << "cv_bridge exception: " << e.what() << std::endl;
-        }
+        std::cout << "Image published: " << ros_msg->header.stamp.sec << "." << ros_msg->header.stamp.nanosec << std::endl;
 
         break;
       }
@@ -84,7 +64,7 @@ int main(int argc, char** argv)
   }
 
   rclcpp::init(argc, argv);
-  rclcpp::spin_some(std::make_shared<PlaybackNode>(argv[1]));
+  rclcpp::spin(std::make_shared<PlaybackNode>(argv[1]));
   rclcpp::shutdown();
 
   return 0;
