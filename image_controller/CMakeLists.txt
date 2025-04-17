@@ -31,6 +31,14 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+add_executable(image_transformer src/image_transformer.cpp)
+ament_target_dependencies(image_transformer rclcpp rosbag2_transport sensor_msgs cv_bridge OpenCV)
+
+install(TARGETS
+  image_transformer
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
