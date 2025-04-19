@@ -1,4 +1,6 @@
-import image_controller
+#!/usr/bin/env python3
+
+from image_controller.camera_software import CameraGeometry
 
 import rclpy
 from rclpy.node import Node
@@ -17,7 +19,7 @@ class MinimalSubscriber(Node):
         # NOTE: Add server for camera_info?
         self.subscription = self.create_subscription(
             Image,
-            '\image_raw',
+            '/image_raw',
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
@@ -48,7 +50,6 @@ def main(args=None):
     # when the garbage collector destroys the node object)
     minimal_subscriber.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()

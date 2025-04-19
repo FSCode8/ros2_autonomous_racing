@@ -16,9 +16,9 @@
   <depend>sensor_msgs</depend>
   <depend>rosbag2_transport</depend>
   <depend>cv_bridge</depend>
-  <depend>opencv4</depend>
+  <depend>python3-opencv</depend>
 
-  <exec_depend>numpy</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

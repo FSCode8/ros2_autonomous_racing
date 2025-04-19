@@ -14,9 +14,18 @@ using namespace std::chrono_literals;
 class PlaybackNode : public rclcpp::Node
 {
   public:
-    PlaybackNode(const std::string & bag_filename)
+    PlaybackNode()
     : Node("playback_node")
-    {
+    {      
+      this->declare_parameter<std::string>("bag_filename", ""); // Declare and get parameter for bag filename
+
+      std::string bag_filename = this->get_parameter("bag_filename").as_string();
+
+      if (bag_filename.empty()) {
+        RCLCPP_ERROR(this->get_logger(), "No bag filename provided. Use --ros-args -p bag_filename:=<your_bag>");
+        throw std::runtime_error("Bag filename not specified");
+      }
+
       publisher_ = this->create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
       timer_ = this->create_wall_timer(
           100ms, std::bind(&PlaybackNode::timer_callback, this));
@@ -25,6 +34,8 @@ class PlaybackNode : public rclcpp::Node
       storage_options.uri = "src/" + bag_filename;
       reader_ = rosbag2_transport::ReaderWriterFactory::make_reader(storage_options);
       reader_->open(storage_options);
+
+      RCLCPP_INFO(this->get_logger(), "Opened bag: %s", bag_filename.c_str());
     }
 
   private:
@@ -43,7 +54,7 @@ class PlaybackNode : public rclcpp::Node
         serialization_.deserialize_message(&serialized_msg, ros_msg.get());
 
         publisher_->publish(*ros_msg);
-        std::cout << "Image published: " << ros_msg->header.stamp.sec << "." << ros_msg->header.stamp.nanosec << std::endl;
+        RCLCPP_INFO(this->get_logger(), "Image published: %d.%d", ros_msg->header.stamp.sec, ros_msg->header.stamp.nanosec);
 
         break;
       }
@@ -58,14 +69,15 @@ class PlaybackNode : public rclcpp::Node
 
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <bag>" << std::endl;
+  rclcpp::init(argc, argv);
+
+  try {
+    auto node = std::make_shared<PlaybackNode>();
+    rclcpp::spin(node);
+  } catch (const std::exception& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
     return 1;
   }
-
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<PlaybackNode>(argv[1]));
-  rclcpp::shutdown();
 
   return 0;
 }
