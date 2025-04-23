@@ -28,7 +28,7 @@ class PlaybackNode : public rclcpp::Node
 
       publisher_ = this->create_publisher<sensor_msgs::msg::Image>("/image_raw", 10);
       timer_ = this->create_wall_timer(
-          100ms, std::bind(&PlaybackNode::timer_callback, this));
+          300ms, std::bind(&PlaybackNode::timer_callback, this));
 
       rosbag2_storage::StorageOptions storage_options;
       storage_options.uri = "src/" + bag_filename;

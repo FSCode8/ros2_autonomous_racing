@@ -16,7 +16,7 @@ def project_polyline(polyline_world, trafo_world_to_cam, K):
 
 
 class CameraGeometry(object):
-    def __init__(self, height=1, roll_deg=0, pitch_deg=0, yaw_deg=0, K_matrix=None):
+    def __init__(self, height=1.0, roll_deg=0, pitch_deg=0, yaw_deg=0, K_matrix=None):
         # scalar constants
         self.height = height
         self.pitch_deg = pitch_deg
@@ -35,7 +35,7 @@ class CameraGeometry(object):
         self.trafo_perspective_cam[0:3, 3] = np.array([0, 0, self.height]) # translation vector
 
         # Create extrinsic matrix for the perspective of the camera
-        self.rotation_perspective_bird = self.create_rotation_matrix(roll_deg=10, pitch_deg=0, yaw_deg=0)
+        self.rotation_perspective_bird = self.create_rotation_matrix(roll_deg=0, pitch_deg=0, yaw_deg=0)
         self.trafo_perspective_bird = np.eye(4)
         self.trafo_perspective_bird[0:3,0:3] = self.rotation_perspective_bird
         self.trafo_perspective_bird[0:3, 3] = np.array([0, 0, self.height]) # translation vector
@@ -44,7 +44,6 @@ class CameraGeometry(object):
         # Note: "rotation_world_to_cam" : R_{wc} 
         self.rotation_cam_to_world = self.create_rotation_matrix(roll_deg=-90, pitch_deg=0, yaw_deg=-90)
         self.rotation_world_to_cam = self.rotation_cam_to_world.T # for rotation matrices, taking the transpose is the same as inversion (R_{wc}^T = R_{cw})
-        translation_world_to_cam = np.array([-self.height, 0, 0])
 
         self.translation_cam_to_world = np.array([0, 0, self.height]) 
         self.trafo_cam_to_world = np.eye(4)
@@ -52,7 +51,7 @@ class CameraGeometry(object):
         self.trafo_cam_to_world[0:3, 3] = self.translation_cam_to_world
         
         # compute vector nc
-        self.world_normal_camframe = self.rotation_world_to_cam @ np.array([0, 0, 1]).T
+        self.world_normal_camframe = self.rotation_world_to_cam @ np.array([0, 0, -1])
 
     def create_rotation_matrix(self, roll_deg, pitch_deg, yaw_deg):
         roll = np.deg2rad(roll_deg)
@@ -79,7 +78,12 @@ class CameraGeometry(object):
                             [0, 0, 1]]) 
         
         # Combine rotations
-        return R_yaw @ R_pitch @ R_roll
+
+        return np.array([[0, 0, 1],
+                        [-1, 0, 0],
+                        [0, -1, 0]]) 
+        """
+        return R_yaw @ R_pitch @ R_roll"""
 
     def create_perspective_homography(self, K1, K2, R_t1, R_t2):
         """
@@ -106,26 +110,55 @@ class CameraGeometry(object):
 
         return H_1to2
 
-    def camframe_to_worldframe(self,vec_in_cam_frame):
+    def camframe_to_worldframe(self, vec_in_cam_frame):
         return self.rotation_cam_to_world @ vec_in_cam_frame + self.translation_cam_to_world
 
-    def uv_to_worldXYZ_camframe(self,u,v):
+    def uv_to_XYZ_camframe(self,u,v):
         # NOTE: The results depend very much on the pitch angle (0.5 degree error yields bad result)
         # Here is a paper on vehicle pitch estimation:
         # https://refubium.fu-berlin.de/handle/fub188/26792
+        print("u v:")
+        print(u, v)
         uv_hom = np.array([u,v,1])
         Kinv_uv_hom = self.inverse_intrinsic_matrix @ uv_hom
-        denominator = self.road_normal_camframe.dot(Kinv_uv_hom)
+        #print("Kinv_uv_hom:")
+        #print(Kinv_uv_hom)
+        denominator = self.world_normal_camframe.dot(Kinv_uv_hom)
+        #print("denominator:")
+        #print(denominator)
+        #print("result:")
+        #print(self.height*Kinv_uv_hom/denominator)
         return self.height*Kinv_uv_hom/denominator
     
-    def uv_to_roadXYZ_worldframe(self,u,v):
-        r_camframe = self.uv_to_worldXYZ_camframe(u,v)
+    def uv_to_XYZ_worldframe(self,u,v):
+        r_camframe = self.uv_to_XYZ_camframe(u,v)
         return self.camframe_to_worldframe(r_camframe)
-    """
-    def uv_to_roadXYZ_roadframe_iso8855(self,u,v):
-        X,Y,Z = self.uv_to_roadXYZ_roadframe(u,v)
-        return np.array([Z,-X,-Y]) # read book section on coordinate systems to understand this
-    """
+
+    def compute_dist(self, u, v):
+        """
+        Compute the distance from the camera to the point on the road.
+        The distance is computed as the length of the vector from the vehicle front (ISO8855 [1, 0, 0]) to the point on the road.
+        """
+        vec_camframe = self.uv_to_XYZ_camframe(u,v)
+        print("vec_camframe:")
+        print(vec_camframe)
+        len_vehicle_front = 1
+        dist_hypo = np.linalg.norm(vec_camframe)
+
+        dist = np.sqrt(dist_hypo**2 - self.height**2) - len_vehicle_front
+        
+        return dist
+
+    def get_min_carless_pixel(self):
+        """
+        Get the minimum pixel (u,v) for which the car is not shown in the image.
+        """
+        shadow_point = np.array([0, 1, 2])
+
+        u, v, _ = self.intrinsic_matrix @ shadow_point / shadow_point[2] # (u, v , 1).T = 1/Zc * K * (Xc, Yc, Zc).T
+
+        return u, (v-1)
+
     """
     def precompute_grid(self,dist=60):
         cut_v = int(self.compute_minimum_v(dist=dist)+1)
@@ -150,175 +183,82 @@ class CameraGeometry(object):
         cut_v = uv_vec[1]
         return cut_v
 
-    
+    def test_camera_geometry(self, test_vec_camframe, test_vec_worldframe):
+        # Test the camera geometry
+        print("Camera Geometry:")
+        print("Intrinsic Matrix:")
+        print(self.intrinsic_matrix)
+        print("Extrinsic Matrix (Camera to World):")
+        print(self.trafo_cam_to_world)
+        print("Rotation Matrix (World to Camera):")
+        print(self.rotation_world_to_cam)
+        print("Translation Vector (Camera to World):")
+        print(self.translation_cam_to_world)
 
-    """
-    def create_homography_camera_birdseye(self):
-        roll = np.deg2rad(0)
-        pitch = np.deg2rad(0)
-        yaw = np.deg2rad(0)
+        print("\n### Test the transformation from camera frame to world frame ###")
+        print("vec_camframe:")
+        vec_camframe = test_vec_camframe
+        print(vec_camframe)
 
-        cr, sr = np.cos(roll), np.sin(roll)
-        cp, sp = np.cos(pitch), np.sin(pitch)
-        cy, sy = np.cos(yaw), np.sin(yaw)
-        
-        # Create rotation matrices in vehicle coordinate system ISO8855 (x: up, y: left, z: forward)
-        # vehicle coordinate system ISO8855 is also world system
-        # R_x
-        R_roll = np.array([[1, 0, 0],
-                            [0, cr, -sr],
-                            [0, sr, cr]])
-        # R_y
-        R_pitch = np.array([[cp, 0, sp],
-                            [0, 1, 0],
-                            [-sp, 0, cp]])
-        # R_z
-        R_yaw = np.array([[cy, -sy, 0],
-                            [sy, cy, 0],
-                            [0, 0, 1]]) 
-        # Combine rotations
-        R_bird = R_yaw @ R_pitch @ R_roll
+        print("vec_worldframe:")
+        vec_worldframe = self.rotation_cam_to_world @ vec_camframe + self.translation_cam_to_world
+        print(vec_worldframe)
 
-        H1 = self.intrinsic_matrix @ self.rotation_cam_to_world
-        H2 = self.intrinsic_matrix @ R_bird
-        #print(self.rotation_cam_to_world)
+        print("vec_camframe:")
+        vec_camframe = self.rotation_world_to_cam @ (vec_worldframe - self.translation_cam_to_world)
+        print(vec_camframe)
 
-        H_1to2 = H2 @ np.linalg.inv(H1)
+        print("\n### Test the transformation from world frame to cam frame ###")
+        print("vec_worldframe:")
+        vec_worldframe = test_vec_worldframe
+        print(vec_worldframe)
 
-        
-        H_1to2[0:3, 2] = np.array([0, 0, 0])
-        print(H_1to2)
-        return H_1to2
-    """
+        print("vec_camframe:")
+        vec_camframe = self.rotation_world_to_cam @ (vec_worldframe - self.translation_cam_to_world)
+        print(vec_camframe)
 
-    
+        print("vec_worldframe:")
+        vec_worldframe = self.rotation_cam_to_world @ vec_camframe + self.translation_cam_to_world  
+        print(vec_worldframe)
 
-###############################################################################
+    """def test_matrix(self):
+        # Beispiel-Einheitsvektoren des Quell-Koordinatensystems (A)
+        a_x = np.array([1, 0, 0])
+        a_y = np.array([0, 1, 0])
+        a_z = np.array([0, 0, 1])
+        A = np.column_stack((a_x, a_y, a_z))
 
-def get_intrinsic_matrix():
-    alpha = 476.7014503479004
-    Cu = 400.0
-    Cv = 0.0
-    return np.array([[alpha, 0, Cu],
-                     [0, alpha, Cv],
-                     [0, 0, 1.0]])
+        # Beispiel-Einheitsvektoren des Ziel-Koordinatensystems (B)
+        # (Hier als Beispiel eine 45°-Drehung um Z)
+        angle_deg = 45
+        angle_rad = np.radians(angle_deg)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
 
-def get_intrinsic_matrix_func(field_of_view_deg, image_width, image_height):
-    # For our Carla camera alpha_u = alpha_v = alpha
-    # alpha can be computed given the cameras field of view via
-    field_of_view_rad = field_of_view_deg * np.pi/180
-    alpha = (image_width / 2.0) / np.tan(field_of_view_rad / 2.)
-    Cu = image_width / 2.0
-    Cv = image_height / 2.0
-    return np.array([[alpha, 0, Cu],
-                     [0, alpha, Cv],
-                     [0, 0, 1.0]])
+        b_x = np.array([0, -1, 0])
+        b_y = np.array([0, 0, -1])
+        b_z = np.array([0, -1, 0])
+        B = np.column_stack((b_x, b_y, b_z))
 
-class CameraGeometry2(object):
-    def __init__(self, height=1, yaw_deg=-90, pitch_deg=0, roll_deg=-90, image_width=800, image_height=800, field_of_view_deg=90):
-        # scalar constants
-        self.height = height
-        self.pitch_deg = pitch_deg
-        self.roll_deg = roll_deg
-        self.yaw_deg = yaw_deg
-        self.image_width = image_width
-        self.image_height = image_height
-        self.field_of_view_deg = field_of_view_deg
-        # camera intriniscs and extrinsics
-        self.intrinsic_matrix = get_intrinsic_matrix()
-        self.inverse_intrinsic_matrix = np.linalg.inv(self.intrinsic_matrix)
-        ## Note that "rotation_cam_to_road" has the math symbol R_{rc} in the book
-        yaw = np.deg2rad(yaw_deg)
-        pitch = np.deg2rad(pitch_deg)
-        roll = np.deg2rad(roll_deg)
-        cy, sy = np.cos(yaw), np.sin(yaw)
-        cp, sp = np.cos(pitch), np.sin(pitch)
-        cr, sr = np.cos(roll), np.sin(roll)
-        self.rotation_road_to_cam = np.array([[cr*cy+sp*sr+sy, cr*sp*sy-cy*sr, -cp*sy],
-                                            [cp*sr, cp*cr, sp],
-                                            [cr*sy-cy*sp*sr, -cr*cy*sp -sr*sy, cp*cy]])
-        print("rotation_road_to_cam")
-        #print(rotation_road_to_cam)
-        self.rotation_cam_to_road = self.rotation_road_to_cam.T # for rotation matrices, taking the transpose is the same as inversion
-        self.translation_cam_to_road = np.array([0,-self.height,0])
-        self.trafo_cam_to_road = np.eye(4)
-        self.trafo_cam_to_road[0:3,0:3] = self.rotation_cam_to_road
-        self.trafo_cam_to_road[0:3,3] = self.translation_cam_to_road
-        # compute vector nc. Note that R_{rc}^T = R_{cr}
-        self.road_normal_camframe = self.rotation_cam_to_road.T @ np.array([0,1,0])
+        # Rotationsmatrix R berechnen
+        R = B @ A.T
 
-    def create_homography_camera_birdseye(self):
-        roll = np.deg2rad(10)
-        pitch = np.deg2rad(10)
-        yaw = np.deg2rad(0)
+        # Matrixelemente extrahieren
+        r11, r12, r13 = R[0, :]
+        r21, r22, r23 = R[1, :]
+        r31, r32, r33 = R[2, :]
 
-        cr, sr = np.cos(roll), np.sin(roll)
-        cp, sp = np.cos(pitch), np.sin(pitch)
-        cy, sy = np.cos(yaw), np.sin(yaw)
-        
-        # Create rotation matrices in vehicle coordinate system ISO8855 (x: up, y: left, z: forward)
-        # vehicle coordinate system ISO8855 is also world system
-        # R_x
-        R_roll = np.array([[1, 0, 0],
-                            [0, cr, -sr],
-                            [0, sr, cr]])
-        # R_y
-        R_pitch = np.array([[cp, 0, sp],
-                            [0, 1, 0],
-                            [-sp, 0, cp]])
-        # R_z
-        R_yaw = np.array([[cy, -sy, 0],
-                            [sy, cy, 0],
-                            [0, 0, 1]]) 
-        # Combine rotations
-        R_bird = R_yaw @ R_pitch @ R_roll
+        # Yaw-Pitch-Roll in ZYX-Reihenfolge
+        pitch = np.arctan2(-r31, np.sqrt(r11**2 + r21**2))
+        yaw   = np.arctan2(r21, r11)
+        roll  = np.arctan2(r32, r33)
 
-        H1 = self.intrinsic_matrix @ self.rotation_cam_to_road
-        H2 = self.intrinsic_matrix @ R_bird
+        # Ausgabe in Grad
+        pitch_deg = np.degrees(pitch)
+        yaw_deg   = np.degrees(yaw)
+        roll_deg  = np.degrees(roll)
 
-        H_1to2 = H2 @ np.linalg.inv(H1)
-        print(self.rotation_cam_to_road)
-
-        return H_1to2
-
-    def camframe_to_roadframe(self,vec_in_cam_frame):
-        return self.rotation_cam_to_road @ vec_in_cam_frame + self.translation_cam_to_road
-
-    def uv_to_roadXYZ_camframe(self,u,v):
-        # NOTE: The results depend very much on the pitch angle (0.5 degree error yields bad result)
-        # Here is a paper on vehicle pitch estimation:
-        # https://refubium.fu-berlin.de/handle/fub188/26792
-        uv_hom = np.array([u,v,1])
-        Kinv_uv_hom = self.inverse_intrinsic_matrix @ uv_hom
-        denominator = self.road_normal_camframe.dot(Kinv_uv_hom)
-        return self.height*Kinv_uv_hom/denominator
-    
-    def uv_to_roadXYZ_roadframe(self,u,v):
-        r_camframe = self.uv_to_roadXYZ_camframe(u,v)
-        return self.camframe_to_roadframe(r_camframe)
-
-    def uv_to_roadXYZ_roadframe_iso8855(self,u,v):
-        X,Y,Z = self.uv_to_roadXYZ_roadframe(u,v)
-        return np.array([Z,-X,-Y]) # read book section on coordinate systems to understand this
-
-    def precompute_grid(self,dist=60):
-        cut_v = int(self.compute_minimum_v(dist=dist)+1)
-        xy = []
-        for v in range(cut_v, self.image_height):
-            for u in range(self.image_width):
-                X,Y,Z= self.uv_to_roadXYZ_roadframe_iso8855(u,v)
-                xy.append(np.array([X,Y]))
-        xy = np.array(xy)
-        return cut_v, xy
-
-    def compute_minimum_v(self, dist):
-        """
-        Find cut_v such that pixels with v<cut_v are irrelevant for polynomial fitting.
-        Everything that is further than `dist` along the road is considered irrelevant.
-        """        
-        trafo_road_to_cam = np.linalg.inv(self.trafo_cam_to_road)
-        point_far_away_on_road = trafo_road_to_cam @ np.array([0,0,dist,1])
-        uv_vec = self.intrinsic_matrix @ point_far_away_on_road[:3]
-        uv_vec /= uv_vec[2]
-        cut_v = uv_vec[1]
-        return cut_v
+        print(R)
+        print(f"Yaw (Z):   {yaw_deg:.2f}°")
+        print(f"Pitch (Y): {pitch_deg:.2f}°")
+        print(f"Roll (X):  {roll_deg:.2f}°")"""
