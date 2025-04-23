@@ -42,8 +42,9 @@ class CameraGeometry(object):
 
         ### Transformation matrix camera coordinates to world coordinates ###
         # Note: "rotation_world_to_cam" : R_{wc} 
-        rotation_world_to_cam = self.create_rotation_matrix(roll_deg=-90, pitch_deg=0, yaw_deg=-90)
-        self.rotation_cam_to_world = rotation_world_to_cam.T # for rotation matrices, taking the transpose is the same as inversion (R_{wc}^T = R_{cw})
+        self.rotation_cam_to_world = self.create_rotation_matrix(roll_deg=-90, pitch_deg=0, yaw_deg=-90)
+        self.rotation_world_to_cam = self.rotation_cam_to_world.T # for rotation matrices, taking the transpose is the same as inversion (R_{wc}^T = R_{cw})
+        translation_world_to_cam = np.array([-self.height, 0, 0])
 
         self.translation_cam_to_world = np.array([0, 0, self.height]) 
         self.trafo_cam_to_world = np.eye(4)
@@ -51,7 +52,7 @@ class CameraGeometry(object):
         self.trafo_cam_to_world[0:3, 3] = self.translation_cam_to_world
         
         # compute vector nc
-        self.world_normal_camframe = rotation_world_to_cam @ np.array([0,0,1])
+        self.world_normal_camframe = self.rotation_world_to_cam @ np.array([0, 0, 1]).T
 
     def create_rotation_matrix(self, roll_deg, pitch_deg, yaw_deg):
         roll = np.deg2rad(roll_deg)
@@ -76,6 +77,7 @@ class CameraGeometry(object):
         R_yaw = np.array([[cy, -sy, 0],
                             [sy, cy, 0],
                             [0, 0, 1]]) 
+        
         # Combine rotations
         return R_yaw @ R_pitch @ R_roll
 
@@ -104,10 +106,10 @@ class CameraGeometry(object):
 
         return H_1to2
 
-    def camframe_to_roadframe(self,vec_in_cam_frame):
+    def camframe_to_worldframe(self,vec_in_cam_frame):
         return self.rotation_cam_to_world @ vec_in_cam_frame + self.translation_cam_to_world
 
-    def uv_to_roadXYZ_camframe(self,u,v):
+    def uv_to_worldXYZ_camframe(self,u,v):
         # NOTE: The results depend very much on the pitch angle (0.5 degree error yields bad result)
         # Here is a paper on vehicle pitch estimation:
         # https://refubium.fu-berlin.de/handle/fub188/26792
@@ -116,14 +118,14 @@ class CameraGeometry(object):
         denominator = self.road_normal_camframe.dot(Kinv_uv_hom)
         return self.height*Kinv_uv_hom/denominator
     
-    def uv_to_roadXYZ_roadframe(self,u,v):
-        r_camframe = self.uv_to_roadXYZ_camframe(u,v)
-        return self.camframe_to_roadframe(r_camframe)
-
+    def uv_to_roadXYZ_worldframe(self,u,v):
+        r_camframe = self.uv_to_worldXYZ_camframe(u,v)
+        return self.camframe_to_worldframe(r_camframe)
+    """
     def uv_to_roadXYZ_roadframe_iso8855(self,u,v):
         X,Y,Z = self.uv_to_roadXYZ_roadframe(u,v)
         return np.array([Z,-X,-Y]) # read book section on coordinate systems to understand this
-
+    """
     """
     def precompute_grid(self,dist=60):
         cut_v = int(self.compute_minimum_v(dist=dist)+1)
@@ -193,6 +195,14 @@ class CameraGeometry(object):
 
 ###############################################################################
 
+def get_intrinsic_matrix():
+    alpha = 476.7014503479004
+    Cu = 400.0
+    Cv = 0.0
+    return np.array([[alpha, 0, Cu],
+                     [0, alpha, Cv],
+                     [0, 0, 1.0]])
+
 def get_intrinsic_matrix_func(field_of_view_deg, image_width, image_height):
     # For our Carla camera alpha_u = alpha_v = alpha
     # alpha can be computed given the cameras field of view via
@@ -224,10 +234,12 @@ class CameraGeometry2(object):
         cy, sy = np.cos(yaw), np.sin(yaw)
         cp, sp = np.cos(pitch), np.sin(pitch)
         cr, sr = np.cos(roll), np.sin(roll)
-        rotation_road_to_cam = np.array([[cr*cy+sp*sr+sy, cr*sp*sy-cy*sr, -cp*sy],
+        self.rotation_road_to_cam = np.array([[cr*cy+sp*sr+sy, cr*sp*sy-cy*sr, -cp*sy],
                                             [cp*sr, cp*cr, sp],
                                             [cr*sy-cy*sp*sr, -cr*cy*sp -sr*sy, cp*cy]])
-        self.rotation_cam_to_road = rotation_road_to_cam.T # for rotation matrices, taking the transpose is the same as inversion
+        print("rotation_road_to_cam")
+        #print(rotation_road_to_cam)
+        self.rotation_cam_to_road = self.rotation_road_to_cam.T # for rotation matrices, taking the transpose is the same as inversion
         self.translation_cam_to_road = np.array([0,-self.height,0])
         self.trafo_cam_to_road = np.eye(4)
         self.trafo_cam_to_road[0:3,0:3] = self.rotation_cam_to_road
