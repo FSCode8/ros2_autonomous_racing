@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from image_controller.camera_software import CameraGeometry, CameraGeometry2
+from image_controller.camera_software import CameraGeometry
 
 import rclpy
 from rclpy.node import Node
@@ -30,7 +30,9 @@ class ImageTransformer(Node):
         
         self.future = None
 
-        #self.bridge = CvBridge()
+        self.bridge = CvBridge()
+
+        
 
         # Create TF buffer and listener
         #self.tf_buffer = tf2_ros.Buffer()
@@ -38,19 +40,22 @@ class ImageTransformer(Node):
 
         self.camera_obj = CameraGeometry(K_matrix=get_intrinsic_matrix())
 
+        self.min_carless_pixel = int(self.camera_obj.get_min_carless_pixel()[1])
+
         # Create homography matrix
+        """
         K = self.camera_obj.intrinsic_matrix
         R_t1 = self.camera_obj.trafo_perspective_cam
         R_t2 = self.camera_obj.trafo_perspective_bird
-        self.H = self.camera_obj.create_perspective_homography(K1=K, K2=K, R_t1=R_t1, R_t2=R_t2)
+        self.H = self.camera_obj.create_perspective_homography(K1=K, K2=K, R_t1=R_t1, R_t2=R_t2)"""
         
-        """
+        
         self.subscription = self.create_subscription(
             Image,
             '/image_raw',
-            self.transform_callback,
+            self.execute_callback,
             10)
-        
+        """
         # Publisher for transformed image
         self.publisher = self.create_publisher(
             Float32,
@@ -59,110 +64,104 @@ class ImageTransformer(Node):
         """
 
     def test(self):
+        #print(self.camera_obj.uv_to_XYZ_camframe(0, 0))
+        print(self.camera_obj.uv_to_XYZ_camframe(200, 799))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 600))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 547))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 500))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 477))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 400))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 200))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 1))
+        return
         # Test the homography matrix
         image = cv.imread("/root/ros2_autonomous_racing/src/image_controller/camera_view.png")
         if image is None:
             self.get_logger().error("Failed to load image")
             return
-        print(self.camera_obj.rotation_world_to_cam @ np.array([0, 0, 1]) + np.array([0, 0, 1]))
+
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+
+        # Threshold the image to create a binary image
+        _, binary = cv.threshold(gray, 190, 255, cv.THRESH_BINARY)
+
+        print(self.camera_obj.uv_to_XYZ_camframe(547, 400))
+        print(binary[547, 400])
+        return
+        """print(self.camera_obj.rotation_world_to_cam @ np.array([0, 0, 1]) + np.array([0, 0, 1]))
         print(self.camera_obj.camframe_to_worldframe(np.array([0, 1, 0])))
-        print(self.camera_obj.world_normal_camframe)
+        print(self.camera_obj.world_normal_camframe)"""
 
         # Apply the homography transform
-        transformed_image = cv.warpPerspective(image, self.H, (image.shape[1], image.shape[0]))
-
+        #transformed_image = cv.warpPerspective(image, self.H, (image.shape[1], image.shape[0]))
+        transformed_image = image.copy()
+        transformed_image[200:205, 100:105] = [255, 0, 0]  # Draw a red square on the transformed image
         # Display the original and transformed images
         cv.imshow("Original Image", image)
         cv.imshow("Transformed Image", transformed_image)
         cv.waitKey(0)
         cv.destroyAllWindows()
 
-    def test_matrix(self):
-        # Beispiel-Einheitsvektoren des Quell-Koordinatensystems (A)
-        a_x = np.array([1, 0, 0])
-        a_y = np.array([0, 1, 0])
-        a_z = np.array([0, 0, 1])
-        A = np.column_stack((a_x, a_y, a_z))
+    def compute_min_distance(self, image):
+        # Convert the image to grayscale
+        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
 
-        # Beispiel-Einheitsvektoren des Ziel-Koordinatensystems (B)
-        # (Hier als Beispiel eine 45°-Drehung um Z)
-        angle_deg = 45
-        angle_rad = np.radians(angle_deg)
-        cos_a = np.cos(angle_rad)
-        sin_a = np.sin(angle_rad)
+        # Threshold the image to create a binary image
+        _, binary = cv.threshold(gray, 190, 255, cv.THRESH_BINARY)
 
-        b_x = np.array([0, -1, 0])
-        b_y = np.array([0, 0, -1])
-        b_z = np.array([0, -1, 0])
-        B = np.column_stack((b_x, b_y, b_z))
+        cv.imshow("Camera Feed", binary)
+        cv.waitKey(1)
 
-        # Rotationsmatrix R berechnen
-        R = B @ A.T
+        # Initialize minimum distance
+        min_distance = float('inf')
 
-        # Matrixelemente extrahieren
-        r11, r12, r13 = R[0, :]
-        r21, r22, r23 = R[1, :]
-        r31, r32, r33 = R[2, :]
+        #print(np.where(binary[:, 400] == 0)[0][-1])
 
-        # Yaw-Pitch-Roll in ZYX-Reihenfolge
-        pitch = np.arctan2(-r31, np.sqrt(r11**2 + r21**2))
-        yaw   = np.arctan2(r21, r11)
-        roll  = np.arctan2(r32, r33)
+        v_min = 547
+        #print(v_min)
+        # Loop through each contour
+        for v in range(v_min, -1, -1):  # from 800 to 0 inclusive
+            if binary[v, 400] == 255:    # (v, u) == (y, x)
+                # Calculate the distance from the contour to the camera
+                min_distance = self.camera_obj.compute_dist(400,v)
+                print(v)
+                return min_distance   
 
-        # Ausgabe in Grad
-        pitch_deg = np.degrees(pitch)
-        yaw_deg   = np.degrees(yaw)
-        roll_deg  = np.degrees(roll)
+        return min_distance     
 
-        print(R)
-        print(f"Yaw (Z):   {yaw_deg:.2f}°")
-        print(f"Pitch (Y): {pitch_deg:.2f}°")
-        print(f"Roll (X):  {roll_deg:.2f}°")
-
-    def transform_callback(self, msg):
+    def execute_callback(self, msg):
         self.get_logger().info('Receiving video frame')
         # Convert ROS Image message to OpenCV2 image
-        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-
-        """
         try:
-            cv_image = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except CvBridgeError as e:
             self.get_logger().error(f'CvBridge Error: {e}')
-        """
-        transformed_image = cv.warpPerspective(image, H, (image.shape[1], image.shape[0]))
-        cv.imwrite("/root/ros2_autonomous_racing/camera_view.png", cv_image)
+        
+        #transformed_image = cv.warpPerspective(image, H, (image.shape[1], image.shape[0]))
+        #cv.imwrite("/root/ros2_autonomous_racing/camera_view.png", cv_image)
+
+        # compute minimum distance
+        compute_min_distance = self.compute_min_distance(cv_image)
+        self.get_logger().info(f'Minimum distance: {compute_min_distance}')
+        #cv_image[self.min_carless_pixel, 400] = [255, 0, 0]
         # Display image
-        cv.imshow("Camera Feed", cv_image)
-        cv.waitKey(0)
+        #cv.imshow("Camera Feed", cv_image)
+        #cv.waitKey(1)
 
 
 def main(args=None):
     rclpy.init(args=args)
 
     image_transformer = ImageTransformer()
-
-    #image_transformer.test_matrix()
-    #print(image_transformer.camera_obj.camframe_to_worldframe(np.array([1, 0, 0])))
-    
-    #print(image_transformer.camera_obj.rotation_cam_to_world @ np.array([-1, 0, 0]))
-    vec_camframe = np.array([0, 1, 0])
-    print("vec_camframe:")
-    print(vec_camframe)
-    translation_cam_to_world = np.array([0, 0, 1]) # Ursprung der Kamera liegt im Weltkoordinatensystem bei [0, 0, 1]
-    print("vec_worldframe:")
-    vec_worldframe = image_transformer.camera_obj.rotation_cam_to_world @ vec_camframe + translation_cam_to_world
-    print(vec_worldframe)
-    """
-    c_o = CameraGeometry2()
-    print(c_o.rotation_road_to_cam.T @ (vec_worldframe - translation_cam_to_world))
-    """
-    vec_camframe = image_transformer.camera_obj.rotation_world_to_cam @ (vec_worldframe - translation_cam_to_world)
-    print("vec_camframe:")
-    print(vec_camframe)
-    
-    
     #image_transformer.test()
+    #image_transformer.camera_obj.test_camera_geometry(
+    #    test_vec_camframe=np.array([1, 0, 0]),
+    #    test_vec_worldframe=np.array([0, 1, 0])
+    #)
+
+    #print(image_transformer.camera_obj.uv_to_XYZ_worldframe(400, 800))
+
+    image_transformer.test()
 
     #rclpy.spin(image_transformer)
 
