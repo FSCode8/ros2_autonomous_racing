@@ -122,9 +122,7 @@ class CameraGeometry(object):
         uv_hom = np.array([u,v,1])
         Kinv_uv_hom = self.inverse_intrinsic_matrix @ uv_hom
         denominator = self.world_normal_camframe.dot(Kinv_uv_hom)
-        camframe_vec = self.height*Kinv_uv_hom/denominator
-        camframe_vec[2] = camframe_vec[2] - 1
-        return camframe_vec
+        return self.height*Kinv_uv_hom/denominator
     
     def uv_to_XYZ_worldframe(self,u,v):
         r_camframe = self.uv_to_XYZ_camframe(u,v)
@@ -138,10 +136,11 @@ class CameraGeometry(object):
         vec_camframe = self.uv_to_XYZ_camframe(u,v)
         print("vec_camframe:")
         print(vec_camframe)
-        len_vehicle_front = 1.24
+        len_vehicle_shadow = 2.24
+        len_vehicle_front = 1
         dist_hypo = np.linalg.norm(vec_camframe)
 
-        dist = np.sqrt(dist_hypo**2 - self.height**2) - len_vehicle_front
+        dist = np.sqrt(dist_hypo**2 - self.height**2) - len_vehicle_front - len_vehicle_shadow
         
         return dist
 
@@ -153,30 +152,6 @@ class CameraGeometry(object):
         u, v, _ = self.intrinsic_matrix @ shadow_point / shadow_point[2] # (u, v , 1).T = 1/Zc * K * (Xc, Yc, Zc).T
 
         return u, (v-1)
-
-    """
-    def precompute_grid(self,dist=60):
-        cut_v = int(self.compute_minimum_v(dist=dist)+1)
-        xy = []
-        for v in range(cut_v, self.image_height):
-            for u in range(self.image_width):
-                X,Y,Z= self.uv_to_roadXYZ_roadframe_iso8855(u,v)
-                xy.append(np.array([X,Y]))
-        xy = np.array(xy)
-        return cut_v, xy
-    """
-
-    def compute_minimum_v(self, dist):
-        """
-        Find cut_v such that pixels with v < cut_v are irrelevant for polynomial fitting.
-        Everything that is further than `dist` along the road is considered irrelevant.
-        """        
-        trafo_world_to_cam = np.linalg.inv(self.trafo_cam_to_world)
-        point_far_away_on_world = trafo_world_to_cam @ np.array([0,0,dist,1])
-        uv_vec = self.intrinsic_matrix @ point_far_away_on_world[:3]
-        uv_vec /= uv_vec[2]
-        cut_v = uv_vec[1]
-        return cut_v
 
     def test_camera_geometry(self, test_vec_camframe, test_vec_worldframe):
         # Test the camera geometry
@@ -215,45 +190,3 @@ class CameraGeometry(object):
         print("vec_worldframe:")
         vec_worldframe = self.rotation_cam_to_world @ vec_camframe + self.translation_cam_to_world  
         print(vec_worldframe)
-
-    """def test_matrix(self):
-        # Beispiel-Einheitsvektoren des Quell-Koordinatensystems (A)
-        a_x = np.array([1, 0, 0])
-        a_y = np.array([0, 1, 0])
-        a_z = np.array([0, 0, 1])
-        A = np.column_stack((a_x, a_y, a_z))
-
-        # Beispiel-Einheitsvektoren des Ziel-Koordinatensystems (B)
-        # (Hier als Beispiel eine 45°-Drehung um Z)
-        angle_deg = 45
-        angle_rad = np.radians(angle_deg)
-        cos_a = np.cos(angle_rad)
-        sin_a = np.sin(angle_rad)
-
-        b_x = np.array([0, -1, 0])
-        b_y = np.array([0, 0, -1])
-        b_z = np.array([0, -1, 0])
-        B = np.column_stack((b_x, b_y, b_z))
-
-        # Rotationsmatrix R berechnen
-        R = B @ A.T
-
-        # Matrixelemente extrahieren
-        r11, r12, r13 = R[0, :]
-        r21, r22, r23 = R[1, :]
-        r31, r32, r33 = R[2, :]
-
-        # Yaw-Pitch-Roll in ZYX-Reihenfolge
-        pitch = np.arctan2(-r31, np.sqrt(r11**2 + r21**2))
-        yaw   = np.arctan2(r21, r11)
-        roll  = np.arctan2(r32, r33)
-
-        # Ausgabe in Grad
-        pitch_deg = np.degrees(pitch)
-        yaw_deg   = np.degrees(yaw)
-        roll_deg  = np.degrees(roll)
-
-        print(R)
-        print(f"Yaw (Z):   {yaw_deg:.2f}°")
-        print(f"Pitch (Y): {pitch_deg:.2f}°")
-        print(f"Roll (X):  {roll_deg:.2f}°")"""
