@@ -5,6 +5,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 
 class TTC_Node : public rclcpp::Node
 {
@@ -24,5 +25,5 @@ class TTC_Node : public rclcpp::Node
     //methods
     void ttc_callback();
     void distance_callback(const std_msgs::msg::Float32 & msg);
-    void velocity_callback(const std_msgs::msg::Float32 & msg);
+    void velocity_callback(const geometry_msgs::msg::TwistStamped & msg);
 };

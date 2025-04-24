@@ -17,7 +17,7 @@ find_package(std_msgs REQUIRED)
 # add executables
 add_executable(ttc_node src/ttc.cpp)
 add_executable(aeb_node src/aeb_node.cpp)
-ament_target_dependencies(ttc_node rclcpp std_msgs)
+ament_target_dependencies(ttc_node rclcpp std_msgs geometry_msgs)
 ament_target_dependencies(aeb_node rclcpp geometry_msgs)
 install(TARGETS
   ttc_node
