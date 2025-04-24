@@ -17,7 +17,7 @@ from cv_bridge import CvBridge, CvBridgeError
 def get_intrinsic_matrix():
     alpha = 476.7014503479004
     Cu = 400.0
-    Cv = 0.0
+    Cv = 400.0
     return np.array([[alpha, 0, Cu],
                      [0, alpha, Cv],
                      [0, 0, 1.0]])
@@ -32,15 +32,9 @@ class ImageTransformer(Node):
 
         self.bridge = CvBridge()
 
-        
-
-        # Create TF buffer and listener
-        #self.tf_buffer = tf2_ros.Buffer()
-        #self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-
         self.camera_obj = CameraGeometry(K_matrix=get_intrinsic_matrix())
 
-        self.min_carless_pixel = int(self.camera_obj.get_min_carless_pixel()[1])
+        self.min_carless_pixel = int(self.camera_obj.get_min_carless_pixel(shadow_point = np.array([0, 1, 3.22]))[1])
 
         # Create homography matrix
         """
@@ -55,38 +49,32 @@ class ImageTransformer(Node):
             '/image_raw',
             self.execute_callback,
             10)
-        """
+       
         # Publisher for transformed image
-        self.publisher = self.create_publisher(
+        self.publisher_ = self.create_publisher(
             Float32,
-            '/colision_distance',
+            '/collision_distance',
             10) 
-        """
+        self.get_logger().info("ImageTransformer node has been started.")
 
     def test(self):
-        #print(self.camera_obj.uv_to_XYZ_camframe(0, 0))
-        print(self.camera_obj.uv_to_XYZ_camframe(200, 799))
+ 
+        """#print(self.camera_obj.uv_to_XYZ_camframe(0, 0))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 800))
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 700))
         print(self.camera_obj.uv_to_XYZ_camframe(400, 600))
         print(self.camera_obj.uv_to_XYZ_camframe(400, 547))
         print(self.camera_obj.uv_to_XYZ_camframe(400, 500))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 477))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 400))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 200))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 1))
-        return
+        print(self.camera_obj.uv_to_XYZ_camframe(400, 401))"""
+        
+
+        print(self.min_carless_pixel)
+
         # Test the homography matrix
         image = cv.imread("/root/ros2_autonomous_racing/src/image_controller/camera_view.png")
-        if image is None:
-            self.get_logger().error("Failed to load image")
-            return
-
-        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-
-        # Threshold the image to create a binary image
-        _, binary = cv.threshold(gray, 190, 255, cv.THRESH_BINARY)
-
-        print(self.camera_obj.uv_to_XYZ_camframe(547, 400))
-        print(binary[547, 400])
+        
+        print(self.compute_min_distance(image))
+        
         return
         """print(self.camera_obj.rotation_world_to_cam @ np.array([0, 0, 1]) + np.array([0, 0, 1]))
         print(self.camera_obj.camframe_to_worldframe(np.array([0, 1, 0])))
@@ -109,21 +97,16 @@ class ImageTransformer(Node):
         # Threshold the image to create a binary image
         _, binary = cv.threshold(gray, 190, 255, cv.THRESH_BINARY)
 
-        cv.imshow("Camera Feed", binary)
-        cv.waitKey(1)
+        #binary[547, 0:800] = 255
 
         # Initialize minimum distance
-        min_distance = float('inf')
+        min_distance = float(-1)
 
-        #print(np.where(binary[:, 400] == 0)[0][-1])
-
-        v_min = 547
-        #print(v_min)
         # Loop through each contour
-        for v in range(v_min, -1, -1):  # from 800 to 0 inclusive
+        for v in range(self.min_carless_pixel, 400, -1):  # from 800 to 0 inclusive
             if binary[v, 400] == 255:    # (v, u) == (y, x)
                 # Calculate the distance from the contour to the camera
-                min_distance = self.camera_obj.compute_dist(400,v)
+                min_distance = self.camera_obj.compute_dist(400, v) # (u, v)
                 print(v)
                 return min_distance   
 
@@ -143,10 +126,12 @@ class ImageTransformer(Node):
         # compute minimum distance
         compute_min_distance = self.compute_min_distance(cv_image)
         self.get_logger().info(f'Minimum distance: {compute_min_distance}')
-        #cv_image[self.min_carless_pixel, 400] = [255, 0, 0]
+        msg = Float32()
+        msg.data = compute_min_distance
+        self.publisher_.publish(msg)
         # Display image
-        #cv.imshow("Camera Feed", cv_image)
-        #cv.waitKey(1)
+        cv.imshow("Camera Feed", cv_image)
+        cv.waitKey(1)
 
 
 def main(args=None):
@@ -161,9 +146,9 @@ def main(args=None):
 
     #print(image_transformer.camera_obj.uv_to_XYZ_worldframe(400, 800))
 
-    image_transformer.test()
+    #image_transformer.test()
 
-    #rclpy.spin(image_transformer)
+    rclpy.spin(image_transformer)
 
     # Destroy the node explicitly
     # (optional - otherwise it will be done automatically
