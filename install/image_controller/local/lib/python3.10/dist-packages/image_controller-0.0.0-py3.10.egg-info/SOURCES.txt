@@ -1,0 +1,8 @@
+setup.py
+image_controller/__init__.py
+image_controller/camera_software.py
+image_controller/image_logic.py
+image_controller.egg-info/PKG-INFO
+image_controller.egg-info/SOURCES.txt
+image_controller.egg-info/dependency_links.txt
+image_controller.egg-info/top_level.txt

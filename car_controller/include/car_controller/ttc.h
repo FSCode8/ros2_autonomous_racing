@@ -18,7 +18,7 @@ class TTC_Node : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr timer;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr ttc_publisher;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr dist_subscription;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr vel_subscription;
+    rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr vel_subscription;
     size_t count;
     float ttc, distance, velocity;
 

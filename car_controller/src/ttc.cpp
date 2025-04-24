@@ -11,8 +11,8 @@ TTC_Node::TTC_Node() : Node("ttc_node"), count(0){
 
 void TTC_Node::ttc_callback(){
   std_msgs::msg::Float32 ttc_msg;
-  ttc_msg.data = ttc;
   ttc = distance / velocity;
+  ttc_msg.data = ttc;
   ttc_publisher->publish(ttc_msg);
 }
 
@@ -21,7 +21,7 @@ void TTC_Node::distance_callback(const std_msgs::msg::Float32 & msg){
 }
 
 void TTC_Node::velocity_callback(const geometry_msgs::msg::TwistStamped & msg){
-  velocity = msg.twist.linear.x;  // Figure out which parameter in message holds velocity
+  velocity = msg.twist.linear.x; 
 }
 
 int main(int argc, char * argv[])

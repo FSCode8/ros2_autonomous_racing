@@ -1,0 +1,109 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Found rclcpp: 16.0.12 (/opt/ros/humble/share/rclcpp/cmake)
+-- Found rosidl_generator_c: 3.1.6 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+-- Found rosidl_adapter: 3.1.6 (/opt/ros/humble/share/rosidl_adapter/cmake)
+-- Found rosidl_generator_cpp: 3.1.6 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 6.2.7 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+-- Found FastRTPS: /opt/ros/humble/include  
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found rclpy: 3.3.16 (/opt/ros/humble/share/rclpy/cmake)
+-- Found rosbag2_cpp: 0.15.14 (/opt/ros/humble/share/rosbag2_cpp/cmake)
+-- Found sensor_msgs: 4.8.0 (/opt/ros/humble/share/sensor_msgs/cmake)
+-- Found rosbag2_transport: 0.15.14 (/opt/ros/humble/share/rosbag2_transport/cmake)
+-- Found cv_bridge: 3.2.1 (/opt/ros/humble/share/cv_bridge/cmake)
+-- Found OpenCV: /usr (found version "4.5.4") 
+-- Found ament_lint_auto: 0.12.12 (/opt/ros/humble/share/ament_lint_auto/cmake)
+-- Added test 'cppcheck' to perform static code analysis on C / C++ code
+-- Configured cppcheck include dirs: 
+-- Configured cppcheck exclude dirs and/or files: 
+-- Added test 'flake8' to check Python code syntax and style conventions
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+-- Added test 'uncrustify' to check C / C++ code style
+-- Configured uncrustify additional arguments: 
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/ros2_autonomous_racing/src/build/image_controller
+[ 33%] [32mBuilding CXX object CMakeFiles/image_transformer.dir/src/image_transformer.cpp.o[0m
+[ 33%] [32mBuilding CXX object CMakeFiles/image_recorder.dir/src/image_recorder.cpp.o[0m
+[ 50%] [32mBuilding CXX object CMakeFiles/image_bag_reader.dir/src/image_bag_reader.cpp.o[0m
+[ 50%] Built target ament_cmake_python_copy_image_controller
+running egg_info
+creating image_controller.egg-info
+writing image_controller.egg-info/PKG-INFO
+writing dependency_links to image_controller.egg-info/dependency_links.txt
+writing top-level names to image_controller.egg-info/top_level.txt
+writing manifest file 'image_controller.egg-info/SOURCES.txt'
+reading manifest file 'image_controller.egg-info/SOURCES.txt'
+writing manifest file 'image_controller.egg-info/SOURCES.txt'
+[ 50%] Built target ament_cmake_python_build_image_controller_egg
+[ 66%] [32m[1mLinking CXX executable image_bag_reader[0m
+[ 66%] Built target image_bag_reader
+[ 83%] [32m[1mLinking CXX executable image_recorder[0m
+[ 83%] Built target image_recorder
+[100%] [32m[1mLinking CXX executable image_transformer[0m
+[100%] Built target image_transformer
+-- Install configuration: ""
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_recorder
+-- Set runtime path of "/root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_recorder" to ""
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_bag_reader
+-- Set runtime path of "/root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_bag_reader" to ""
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_transformer
+-- Set runtime path of "/root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_transformer" to ""
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/lib/image_controller/image_logic.py
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/environment/pythonpath.sh
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/environment/pythonpath.dsv
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller-0.0.0-py3.10.egg-info
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller-0.0.0-py3.10.egg-info/top_level.txt
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller-0.0.0-py3.10.egg-info/SOURCES.txt
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller-0.0.0-py3.10.egg-info/dependency_links.txt
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller-0.0.0-py3.10.egg-info/PKG-INFO
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller/__init__.py
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller/camera_software.py
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller/image_logic.py
+Listing '/root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller'...
+Compiling '/root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller/__init__.py'...
+Compiling '/root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller/camera_software.py'...
+Compiling '/root/ros2_autonomous_racing/src/install/image_controller/local/lib/python3.10/dist-packages/image_controller/image_logic.py'...
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller//launch
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller//launch/test_image_logic_launch.py
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller//launch/publish_bag_launch.py
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/ament_index/resource_index/package_run_dependencies/image_controller
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/ament_index/resource_index/parent_prefix_path/image_controller
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/environment/ament_prefix_path.sh
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/environment/ament_prefix_path.dsv
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/environment/path.sh
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/environment/path.dsv
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/local_setup.bash
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/local_setup.sh
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/local_setup.zsh
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/local_setup.dsv
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/package.dsv
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/ament_index/resource_index/packages/image_controller
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/cmake/image_controllerConfig.cmake
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/cmake/image_controllerConfig-version.cmake
+-- Installing: /root/ros2_autonomous_racing/src/install/image_controller/share/image_controller/package.xml
