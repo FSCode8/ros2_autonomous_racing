@@ -32,7 +32,7 @@ class ImageTransformer(Node):
 
         self.bridge = CvBridge()
 
-        self.camera_obj = CameraGeometry(K_matrix=get_intrinsic_matrix())
+        self.camera_obj = CameraGeometry(height = 1, K_matrix=get_intrinsic_matrix())
 
         self.min_carless_pixel = int(self.camera_obj.get_min_carless_pixel(shadow_point = np.array([0, 1, 3.22]))[1])
 
