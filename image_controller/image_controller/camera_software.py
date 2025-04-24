@@ -121,14 +121,10 @@ class CameraGeometry(object):
         print(u, v)
         uv_hom = np.array([u,v,1])
         Kinv_uv_hom = self.inverse_intrinsic_matrix @ uv_hom
-        #print("Kinv_uv_hom:")
-        #print(Kinv_uv_hom)
         denominator = self.world_normal_camframe.dot(Kinv_uv_hom)
-        #print("denominator:")
-        #print(denominator)
-        #print("result:")
-        #print(self.height*Kinv_uv_hom/denominator)
-        return self.height*Kinv_uv_hom/denominator
+        camframe_vec = self.height*Kinv_uv_hom/denominator
+        camframe_vec[2] = camframe_vec[2] - 1
+        return camframe_vec
     
     def uv_to_XYZ_worldframe(self,u,v):
         r_camframe = self.uv_to_XYZ_camframe(u,v)
@@ -142,18 +138,17 @@ class CameraGeometry(object):
         vec_camframe = self.uv_to_XYZ_camframe(u,v)
         print("vec_camframe:")
         print(vec_camframe)
-        len_vehicle_front = 1
+        len_vehicle_front = 1.24
         dist_hypo = np.linalg.norm(vec_camframe)
 
         dist = np.sqrt(dist_hypo**2 - self.height**2) - len_vehicle_front
         
         return dist
 
-    def get_min_carless_pixel(self):
+    def get_min_carless_pixel(self, shadow_point=None):
         """
         Get the minimum pixel (u,v) for which the car is not shown in the image.
         """
-        shadow_point = np.array([0, 1, 2])
 
         u, v, _ = self.intrinsic_matrix @ shadow_point / shadow_point[2] # (u, v , 1).T = 1/Zc * K * (Xc, Yc, Zc).T
 
