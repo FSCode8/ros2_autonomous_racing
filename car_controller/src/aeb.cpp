@@ -19,7 +19,8 @@ private:
 
   void timer_callback(){
     auto msg = geometry_msgs::msg::TwistStamped();
-    if(ttc < 3.0)
+    msg.twist.linear.x = 9.0;
+    if((ttc > 0 && ttc < 2.0))
       msg.twist.linear.x = 0.0;
     msg.twist.angular.z = 0.0;
     publisher_->publish(msg);
