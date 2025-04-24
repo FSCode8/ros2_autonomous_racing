@@ -7,7 +7,9 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -29,6 +31,28 @@ ament_target_dependencies(image_bag_reader rclcpp rosbag2_transport sensor_msgs)
 install(TARGETS
   image_bag_reader
   DESTINATION lib/${PROJECT_NAME}
+)
+
+add_executable(image_transformer src/image_transformer.cpp)
+ament_target_dependencies(image_transformer rclcpp rosbag2_transport sensor_msgs cv_bridge OpenCV)
+
+install(TARGETS
+  image_transformer
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install Python executables
+install(PROGRAMS
+  image_controller/image_logic.py
+  DESTINATION lib/${PROJECT_NAME})
+
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
 )
 
 if(BUILD_TESTING)
