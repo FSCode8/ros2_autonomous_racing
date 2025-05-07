@@ -1,13 +1,25 @@
 #!/usr/bin/env python3
 
 from image_controller.camera_software import CameraGeometry
+from image_controller.VisionCalculation import Camera
+from image_controller.VisionCalculation import VehicleGeometry
+from image_controller.VisionCalculation import VisionCalculation
 
 import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from sensor_msgs.msg import Image
+from sensor_msgs.msg import CameraInfo
 from std_msgs.msg import Float32
+
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+
+from geometry_msgs.msg import PointStamped
+import tf2_geometry_msgs
 
 import cv2 as cv
 import numpy as np
@@ -22,34 +34,26 @@ def get_intrinsic_matrix():
                      [0, alpha, Cv],
                      [0, 0, 1.0]])
 
+
 class ImageTransformer(Node):
 
     def __init__(self):
         super().__init__('image_transformer')
         # NOTE: Add server for camera_info?
-        
-        self.future = None
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
 
         self.bridge = CvBridge()
 
-        self.camera_obj = CameraGeometry(height = 1, K_matrix=get_intrinsic_matrix())
-
-        self.min_carless_pixel = int(self.camera_obj.get_min_carless_pixel(shadow_point = np.array([0, 1, 3.22]))[1])
-
-        # Create homography matrix
-        """
-        K = self.camera_obj.intrinsic_matrix
-        R_t1 = self.camera_obj.trafo_perspective_cam
-        R_t2 = self.camera_obj.trafo_perspective_bird
-        self.H = self.camera_obj.create_perspective_homography(K1=K, K2=K, R_t1=R_t1, R_t2=R_t2)"""
-        
-        
+        # Create subscription with the callback group
         self.subscription = self.create_subscription(
-            Image,
-            '/image_raw',
-            self.execute_callback,
-            10)
-       
+            CameraInfo,  # Replace with your message type
+            '/camera_info',
+            self._initial_data_callback,
+            10
+        )
+
         # Publisher for transformed image
         self.publisher_ = self.create_publisher(
             Float32,
@@ -57,19 +61,95 @@ class ImageTransformer(Node):
             10) 
         self.get_logger().info("ImageTransformer node has been started.")
 
-    def test(self):
- 
-        """#print(self.camera_obj.uv_to_XYZ_camframe(0, 0))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 800))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 700))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 600))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 547))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 500))
-        print(self.camera_obj.uv_to_XYZ_camframe(400, 401))"""
+        # Wait for the initial data
+        self.get_logger().info('Waiting for initial data from topic...')
+
+    def _initial_data_callback(self, msg):
         
+        self._intrinsic_matrix = array_3x3 = np.array(msg.k).reshape(3, 3)
+        self.get_logger().info(f'Received camera-intrinsic-matrix: {self._intrinsic_matrix}')
+        
+        self.destroy_subscription(self.subscription)
+        self.get_logger().info('Subscription closed after receiving initial data')
 
-        print(self.min_carless_pixel)
+        camera_obj = Camera(K_matrix=self._intrinsic_matrix)
+        vehicle_obj = VehicleGeometry(cam_height=1, len_vehicle_shadow=2.24, len_vehicle_front=1.0)      
+        
+        # get transformation from base_link to camera_link_optical
+        from_frame_rel = 'camera_link_optical'
+        to_frame_rel = 'base_link'
 
+        try:
+            t = self.tf_buffer.lookup_transform(
+                to_frame_rel,
+                from_frame_rel,
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().warn(
+                f'Could not transform {from_frame_rel} to {to_frame_rel}: {ex}')
+            return     
+
+        # Extract translation and rotation
+        trans = t.transform.translation
+        rot = t.transform.rotation
+        
+        # Assume your np.array point
+        np_point = np.array([0.0, 0.0, 1.0])
+
+        # Convert the quaternion to a rotation matrix
+        print(f"Quaternion: {rot.x}, {rot.y}, {rot.z}, {rot.w}")
+        print(f"Translation: {trans.x}, {trans.y}, {trans.z}")
+        rotation_matrix = VisionCalculation.quaternion_to_rotation_matrix(rot.x, rot.y, rot.z, rot.w)
+        
+        # Transform the point
+        print(f"Rotation matrix: {rotation_matrix}")
+        transformed_np_point = rotation_matrix @ np_point + np.array([trans.x, trans.y, trans.z])
+
+        self.get_logger().info(f"Transformed point: {transformed_np_point}")
+        
+        translation_vector = np.array([trans.x-1, trans.y, trans.z])    # world frame origin is under camera
+
+        self.vision_calc = VisionCalculation(
+            camera_object=camera_obj,
+            vehicle_object=vehicle_obj,
+            rotation_cam_to_world=rotation_matrix,
+            translation_cam_to_world=translation_vector
+        )
+
+        self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
+
+        self.subscription = self.create_subscription(
+            Image,
+            '/image_raw',
+            self.execute_callback,
+            10
+        )
+    
+
+    def test(self, image):
+
+        from_frame_rel = 'base_link'
+        to_frame_rel = 'camera_link_optical'
+        print(from_frame_rel)
+        # First, check what frames are available
+        frames = self.tf_buffer.all_frames_as_string()
+        self.get_logger().info(f'Available frames: {frames}')
+
+        try:
+            t = self.tf_buffer.lookup_transform(
+                from_frame_rel,
+                to_frame_rel,
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().warn(
+                f'Could not transform {from_frame_rel} to {to_frame_rel}: {ex}')
+            return     
+
+        print(f"Transform from {to_frame_rel} to {from_frame_rel}:")
+        print(t.transform.translation)
+        print(f"Rotation: {t.transform.rotation.x}, {t.transform.rotation.y}, {t.transform.rotation.z}, {t.transform.rotation.w}")
+        return
+        
         # Test the homography matrix
         image = cv.imread("/root/ros2_autonomous_racing/src/image_controller/camera_view.png")
         
@@ -106,7 +186,7 @@ class ImageTransformer(Node):
         for v in range(self.min_carless_pixel, 400, -1):  # from 800 to 0 inclusive
             if binary[v, 400] == 255:    # (v, u) == (y, x)
                 # Calculate the distance from the contour to the camera
-                min_distance = self.camera_obj.compute_dist(400, v) # (u, v)
+                min_distance = self.vision_calc.compute_dist(400, v) # (u, v)
                 print(v)
                 return min_distance   
 

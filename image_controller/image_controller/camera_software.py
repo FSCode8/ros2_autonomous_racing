@@ -114,9 +114,6 @@ class CameraGeometry(object):
         return self.rotation_cam_to_world @ vec_in_cam_frame + self.translation_cam_to_world
 
     def uv_to_XYZ_camframe(self,u,v):
-        # NOTE: The results depend very much on the pitch angle (0.5 degree error yields bad result)
-        # Here is a paper on vehicle pitch estimation:
-        # https://refubium.fu-berlin.de/handle/fub188/26792
         print("u v:")
         print(u, v)
         uv_hom = np.array([u,v,1])
