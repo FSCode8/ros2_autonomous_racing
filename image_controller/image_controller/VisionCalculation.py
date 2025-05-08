@@ -41,6 +41,8 @@ class VisionCalculation:
         # compute vector nc
         self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -1])
 
+        self.grid_coordinates = self.precompute_grid()
+
 
     def camframe_to_worldframe(self, vec_in_cam_frame):
         return self.rotation_cam_to_world @ vec_in_cam_frame + self.translation_cam_to_world
@@ -55,27 +57,14 @@ class VisionCalculation:
         r_camframe = self.uv_to_XYZ_camframe(u,v)
         return self.camframe_to_worldframe(r_camframe)
 
-    def precompute_grid(self,dist=60):
-        cut_v = int(self.compute_minimum_v(dist=dist)+1)
-        xy = []
-        for v in range(cut_v, self.camera.image_height):
+    def precompute_grid(self):
+        min_pixel = int(self.camera.image_height/2) + 1 # only if camera has no pitch angle
+        coordinates_grid = np.full((self.camera.image_height, self.camera.image_width, 2), -1, dtype=float)
+        for v in range(min_pixel, self.camera.image_height):
             for u in range(self.camera.image_width):
-                X,Y,Z= self.uv_to_roadXYZ_roadframe_iso8855(u,v)
-                xy.append(np.array([X,Y]))
-        xy = np.array(xy)
-        return cut_v, xy
-
-    def compute_minimum_v(self, dist):
-        """
-        Find cut_v such that pixels with v<cut_v are irrelevant for polynomial fitting.
-        Everything that is further than `dist` along the road is considered irrelevant.
-        """        
-        trafo_road_to_cam = np.linalg.inv(self.trafo_cam_to_road)
-        point_far_away_on_road = trafo_road_to_cam @ np.array([0,0,dist,1])
-        uv_vec = self.intrinsic_matrix @ point_far_away_on_road[:3]
-        uv_vec /= uv_vec[2]
-        cut_v = uv_vec[1]
-        return cut_v
+                X,Y,Z= self.uv_to_XYZ_worldframe(u,v)
+                coordinates_grid[v, u] = np.array([X,Y])
+        return coordinates_grid
 
     def compute_dist(self, u, v):
         """
@@ -122,3 +111,38 @@ class VisionCalculation:
         ])
 
         return R
+
+    def test_camera_geometry(self, test_vec_camframe, test_vec_worldframe):
+        rotation_world_to_cam = np.linalg.inv(self.rotation_cam_to_world)
+        # Test the camera geometry
+        print("Camera Geometry:")
+        print("Intrinsic Matrix:")
+        print(self.cam_intrinsic_matrix)
+        print("Rotation Matrix (Camera to World):")
+        print(self.rotation_cam_to_world)
+
+        print("\n### Test the transformation from camera frame to world frame ###")
+        print("vec_camframe:")
+        vec_camframe = test_vec_camframe
+        print(vec_camframe)
+
+        print("vec_worldframe:")
+        vec_worldframe = self.rotation_cam_to_world @ vec_camframe + self.translation_cam_to_world
+        print(vec_worldframe)
+
+        print("vec_camframe:")
+        vec_camframe = rotation_world_to_cam @ (vec_worldframe - self.translation_cam_to_world)
+        print(vec_camframe)
+
+        print("\n### Test the transformation from world frame to cam frame ###")
+        print("vec_worldframe:")
+        vec_worldframe = test_vec_worldframe
+        print(vec_worldframe)
+
+        print("vec_camframe:")
+        vec_camframe = rotation_world_to_cam @ (vec_worldframe - self.translation_cam_to_world)
+        print(vec_camframe)
+
+        print("vec_worldframe:")
+        vec_worldframe = self.rotation_cam_to_world @ vec_camframe + self.translation_cam_to_world  
+        print(vec_worldframe)

@@ -41,6 +41,13 @@ class ImageTransformer(Node):
         super().__init__('image_transformer')
         # NOTE: Add server for camera_info?
 
+        camera_obj = CameraGeometry(K_matrix=get_intrinsic_matrix())
+        camera_obj.test_camera_geometry(
+            test_vec_camframe=np.array([0, 1, 0]),
+            test_vec_worldframe=np.array([0, 0, 1])
+        )
+        print(camera_obj.uv_to_XYZ_worldframe(400, 799))
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -93,8 +100,8 @@ class ImageTransformer(Node):
         trans = t.transform.translation
         rot = t.transform.rotation
         
-        # Assume your np.array point
-        np_point = np.array([0.0, 0.0, 1.0])
+        # Point in camframe
+        np_point = np.array([0.0, 0.0, 0.0])
 
         # Convert the quaternion to a rotation matrix
         print(f"Quaternion: {rot.x}, {rot.y}, {rot.z}, {rot.w}")
@@ -107,7 +114,7 @@ class ImageTransformer(Node):
 
         self.get_logger().info(f"Transformed point: {transformed_np_point}")
         
-        translation_vector = np.array([trans.x-1, trans.y, trans.z])    # world frame origin is under camera
+        translation_vector = np.array([0, trans.y, trans.z])    # world frame origin is under camera, baselink is one behind
 
         self.vision_calc = VisionCalculation(
             camera_object=camera_obj,
@@ -116,8 +123,15 @@ class ImageTransformer(Node):
             translation_cam_to_world=translation_vector
         )
 
-        self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
+        self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,1,0]), test_vec_worldframe=np.array([0, 0, 1]))
 
+        print("POINT:")
+        print(self.vision_calc.grid_coordinates[799, 400])
+        print(self.vision_calc.grid_coordinates[401, 400])
+        print(self.vision_calc.grid_coordinates[0, 400])
+
+        self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
+        xxxx
         self.subscription = self.create_subscription(
             Image,
             '/image_raw',
@@ -137,8 +151,8 @@ class ImageTransformer(Node):
 
         try:
             t = self.tf_buffer.lookup_transform(
-                from_frame_rel,
                 to_frame_rel,
+                from_frame_rel,
                 rclpy.time.Time())
         except TransformException as ex:
             self.get_logger().warn(
@@ -183,7 +197,7 @@ class ImageTransformer(Node):
         min_distance = float(-1)
 
         # Loop through each contour
-        for v in range(self.min_carless_pixel, 400, -1):  # from 800 to 0 inclusive
+        for v in range(self.min_carless_pixel, 400, -1):  # from min_carless_pixel (about 650) to 400 inclusive
             if binary[v, 400] == 255:    # (v, u) == (y, x)
                 # Calculate the distance from the contour to the camera
                 min_distance = self.vision_calc.compute_dist(400, v) # (u, v)
