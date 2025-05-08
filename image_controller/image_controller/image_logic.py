@@ -131,7 +131,7 @@ class ImageTransformer(Node):
         print(self.vision_calc.grid_coordinates[0, 400])
 
         self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
-        xxxx
+        
         self.subscription = self.create_subscription(
             Image,
             '/image_raw',

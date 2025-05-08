@@ -66,7 +66,7 @@ class VisionCalculation:
                 coordinates_grid[v, u] = np.array([X,Y])
         return coordinates_grid
 
-    def compute_dist(self, u, v):
+    def compute_dist(self, u, v, alpha=0):
         """
         Compute the distance from the camera to the point on the road.
         The distance is computed as the length of the vector from the vehicle front (ISO8855 [1, 0, 0]) to the point on the road.
@@ -77,8 +77,14 @@ class VisionCalculation:
         len_vehicle_shadow = self.vehicle.len_vehicle_shadow
         len_vehicle_front = self.vehicle.len_vehicle_front
         dist_hypo = np.linalg.norm(vec_camframe)
-
-        dist = np.sqrt(dist_hypo**2 - self.vehicle.cam_height**2) - len_vehicle_front - len_vehicle_shadow
+        
+        if -22.5 <= alpha <= 22.5: 
+            dist = vec_camframe[2] -1
+        elif -90 <= alpha <= 90:
+            dist = np.sqrt(vec_camframe[0]**2 + vac_camframe[1]**2)
+        else:
+            raise ValueError("alpha must be in the range [-90, 90]")
+        #dist = np.sqrt(dist_hypo**2 - self.vehicle.cam_height**2) - len_vehicle_front - len_vehicle_shadow
         
         return dist
 
