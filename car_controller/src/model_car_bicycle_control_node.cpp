@@ -8,7 +8,7 @@ template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
-class BicycleControlNode : public rclcpp::Node {
+class ModelCarBicycleControlNode : public rclcpp::Node {
 public:
     // Neue Enum für den Fahrzustand
     enum class DriveMode {
@@ -17,57 +17,31 @@ public:
         STRAIGHT     // Fahrzeug fährt geradeaus
     };
 
-    BicycleControlNode() : Node("bicycle_control_node"), remaining_heading_change_(0.0), drive_mode_(DriveMode::STRAIGHT) {
-        // Parameter 'use_sim_time'
-        // Überprüfen, ob 'use_sim_time' bereits deklariert wurde (z.B. über Kommandozeile oder Launch-Datei)
-        if (!this->has_parameter("use_sim_time")) {
-            // Falls nicht deklariert, mit Standardwert 'false' deklarieren.
-            // Dies ermöglicht es dem Knoten, ohne explizite Setzung von 'use_sim_time' zu laufen,
-            // wobei er standardmäßig auf Wall-Clock-Zeit zurückfällt.
-            this->declare_parameter<bool>("use_sim_time", false);
-            RCLCPP_INFO(this->get_logger(), "'use_sim_time' Parameter wurde nicht gesetzt, mit Standardwert 'false' deklariert.");
-        } else {
-            // Falls bereits deklariert, müssen wir nichts bei der Deklaration tun.
-            // Wir werden einfach seinen Wert abrufen.
-            RCLCPP_INFO(this->get_logger(), "'use_sim_time' Parameter war bereits deklariert (z.B. durch Launch-Datei oder Kommandozeile). Vorhandener Wert wird verwendet.");
-        }
-
-        // Wert von 'use_sim_time' abrufen
-        // Dies ruft den Wert ab, unabhängig davon, ob er gerade mit einem Standardwert deklariert wurde
-        // oder ob er bereits vorhanden war.
-        bool use_sim_time = this->get_parameter("use_sim_time").as_bool();
-
-        if (use_sim_time) {
-            RCLCPP_INFO(this->get_logger(), "Simulationszeit wird verwendet, da 'use_sim_time' true ist.");
-        } else {
-            RCLCPP_WARN(this->get_logger(), "Wall-Clock-Zeit wird verwendet, da 'use_sim_time' false ist. Dies kann zu Problemen mit Gazebo führen, falls nicht beabsichtigt. Starten Sie den Knoten ggf. mit 'use_sim_time:=true'.");
-        }
-
+    ModelCarBicycleControlNode() : Node("model_car_bicycle_control_node"), remaining_heading_change_(0.0), drive_mode_(DriveMode::STRAIGHT) {
         // Parameter deklarieren und initialisieren
         this->declare_parameter<double>("linear_speed", 3.0); // Lineare Geschwindigkeit in m/s
         this->declare_parameter<double>("k_p", 2.0);          // Proportionalverstärkung für den Lenkregler. MUSS ggf. ERHÖHT werden.
-        this->declare_parameter<double>("wheelbase", 1.7);      // Radstand des Fahrzeugs in Metern. SEHR WICHTIG für korrekte Kinematik.
+        this->declare_parameter<double>("wheelbase", 0.365);      // Radstand des Fahrzeugs in Metern. SEHR WICHTIG für korrekte Kinematik.
         this->declare_parameter<double>("max_steering_angle", 0.436332); // Max. Lenkwinkel (ca. 25 Grad) in Radiant
         this->declare_parameter<double>("min_abs_steering_for_effect", 0.0174533); // Min. effektiver Lenkwinkel (ca. 1 Grad) in Radiant
         this->declare_parameter<double>("heading_tolerance", 0.00872665); // Toleranz für Ziel-Heading (ca. 0.5 Grad) in Radiant
 
         angle_subscriber_ = this->create_subscription<std_msgs::msg::Float64>(
             "target/angle", 10,
-            std::bind(&BicycleControlNode::angle_callback, this, std::placeholders::_1));
+            std::bind(&ModelCarBicycleControlNode::angle_callback, this, std::placeholders::_1));
 
         twist_publisher_ = this->create_publisher<geometry_msgs::msg::TwistStamped>(
-            "/ackermann_steering_controller/reference", 10); // Stellen Sie sicher, dass dies das korrekte Topic für Ihren Gazebo Ackermann Controller ist
+            "/bicycle_steering_controller/reference", 10); // Geändertes Topic für den Controller
 
         // Initialisiere last_time_ für eine dynamische dt-Berechnung
-        // this->now() gibt entweder Wall-Clock oder Sim-Zeit zurück, abhängig von use_sim_time
         last_time_ = this->now();
 
         // Control loop timer
-        control_timer_ = this->create_wall_timer( // Der Timer selbst läuft immer noch auf Wall-Clock-Basis
-            std::chrono::milliseconds(100),       // aber die dt-Berechnung im Loop verwendet this->now()
-            std::bind(&BicycleControlNode::control_loop, this));
+        control_timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(100),
+            std::bind(&ModelCarBicycleControlNode::control_loop, this));
 
-        RCLCPP_INFO(this->get_logger(), "BicycleControlNode gestartet. Überprüfen Sie 'use_sim_time' und Fahrzeugparameter.");
+        RCLCPP_INFO(this->get_logger(), "ModelCarBicycleControlNode gestartet.");
     }
 
 private:
@@ -82,7 +56,7 @@ private:
     }
 
     void control_loop() {
-        auto current_time = this->now(); // Verwendet Sim-Zeit, wenn use_sim_time=true
+        auto current_time = this->now();
         double dt = (current_time - last_time_).seconds();
         last_time_ = current_time;
 
@@ -90,7 +64,7 @@ private:
             // Dies kann passieren, wenn die Simulationszeit beim Start noch nicht richtig initialisiert ist
             // oder wenn die Simulation pausiert ist und dann fortgesetzt wird mit demselben Zeitstempel.
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, // Loggt max. einmal pro Sekunde
-                "Ungültiger oder Null dt-Wert: %.4f. Kontrollschleife wird übersprungen. Ist die Simulation aktiv und use_sim_time korrekt gesetzt?", dt);
+                "Ungültiger oder Null dt-Wert: %.4f. Kontrollschleife wird übersprungen.", dt);
             return;
         }
 
@@ -176,10 +150,6 @@ private:
             // und wir uns innerhalb der Toleranz befinden.
             remaining_heading_change_ = 0.0;
         }
-        // Wenn executed_heading_change_this_step = 0 (z.B. v=0, oder Lenkwinkel=0)
-        // oder das falsche Vorzeichen hat (sollte bei diesem P-Regler nicht passieren, es sei denn, k_p ist negativ),
-        // wird remaining_heading_change_ nicht wie erwartet reduziert. In diesem Fall wird es im nächsten Zyklus
-        // erneut versucht, oder es bleibt bei 0, wenn es bereits innerhalb der Toleranz ist.
 
         // Log den aktuellen Fahrmodus
         if (drive_mode_ == DriveMode::TURNING) {
@@ -191,11 +161,11 @@ private:
         }
 
         RCLCPP_DEBUG(this->get_logger(),
-            "SimTime: %.3f, dt: %.4fs, LinSpd: %.2fm/s, Wheelbase: %.2fm, k_p: %.2f",
+            "Zeit: %.3f, dt: %.4fs, LinSpd: %.2fm/s, Wheelbase: %.2fm, k_p: %.2f",
             current_time.seconds(), dt, linear_speed, wheelbase, k_p);
         RCLCPP_DEBUG(this->get_logger(),
             "RemHeadChg: %.3frad, RawSteerCmd(k_p*err): %.3frad, FinalCmdSteerAng: %.3frad",
-            remaining_heading_change_, k_p * remaining_heading_change_, commanded_steering_angle); // k_p * remaining_heading_change_ ist der *aktuelle* Fehlerterm vor Begrenzung etc.
+            remaining_heading_change_, k_p * remaining_heading_change_, commanded_steering_angle);
         RCLCPP_DEBUG(this->get_logger(),
             "EstYawRate: %.3frad/s, ExecHeadChgStep: %.3frad, NewRemHeadChg: %.3frad",
             estimated_yaw_rate, executed_heading_change_this_step, remaining_heading_change_);
@@ -207,18 +177,13 @@ private:
     
     rclcpp::Time last_time_;              // Zeitpunkt der letzten Kontrollschleife für dt-Berechnung
     double remaining_heading_change_;     // Verbleibende Kursänderung in Radiant
-    DriveMode drive_mode_;      // Aktueller Fahrmodus
+    DriveMode drive_mode_;                // Aktueller Fahrmodus
 };
 
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
-    // Wichtig: use_sim_time muss oft global oder zumindest für den Executor gesetzt werden,
-    // bevor der Node instanziiert wird, wenn es über Parameter-Datei geladen wird.
-    // Wenn per Kommandozeile (--ros-args -p use_sim_time:=true), wird es korrekt behandelt,
-    // und der obige Check im Konstruktor (has_parameter) greift.
-    auto node = std::make_shared<BicycleControlNode>();
+    auto node = std::make_shared<ModelCarBicycleControlNode>();
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;
 }
-
