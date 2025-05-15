@@ -12,6 +12,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rosbag2_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -22,6 +23,14 @@ ament_target_dependencies(image_recorder rclcpp rosbag2_cpp sensor_msgs)
 
 install(TARGETS
   image_recorder
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+add_executable(image_saver src/image_saver.cpp)
+ament_target_dependencies(image_saver rclcpp cv_bridge OpenCV sensor_msgs)
+
+install(TARGETS
+  image_saver
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -44,6 +53,7 @@ install(TARGETS
 # Install Python executables
 install(PROGRAMS
   image_controller/image_logic.py
+  image_controller/image_saver_py.py
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules

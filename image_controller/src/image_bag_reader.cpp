@@ -44,14 +44,16 @@ class PlaybackNode : public rclcpp::Node
       while (reader_->has_next()) {
         rosbag2_storage::SerializedBagMessageSharedPtr msg = reader_->read_next();
 
+        /*
         if (msg->topic_name != "/image_raw") {
           continue;
-        }
+        }*/
 
         rclcpp::SerializedMessage serialized_msg(*msg->serialized_data);
         sensor_msgs::msg::Image::SharedPtr ros_msg = std::make_shared<sensor_msgs::msg::Image>();
 
-        serialization_.deserialize_message(&serialized_msg, ros_msg.get());
+        serialization_.deserialize_message(&serialized_msg, ros_msg
+          .get());
 
         publisher_->publish(*ros_msg);
         RCLCPP_INFO(this->get_logger(), "Image published: %d.%d", ros_msg->header.stamp.sec, ros_msg->header.stamp.nanosec);
