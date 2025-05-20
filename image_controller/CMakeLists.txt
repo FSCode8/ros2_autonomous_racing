@@ -54,6 +54,7 @@ install(TARGETS
 install(PROGRAMS
   image_controller/image_logic.py
   image_controller/image_saver_py.py
+  image_controller/prototype.py
   DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules

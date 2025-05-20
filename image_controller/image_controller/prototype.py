@@ -28,6 +28,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Vector3
 
 import math
+import os
 
 
 def get_intrinsic_matrix():
@@ -39,7 +40,7 @@ def get_intrinsic_matrix():
                      [0, 0, 1.0]])
 
 
-class ImageTransformer(Node):
+class Test(Node):
 
     def __init__(self):
         super().__init__('image_transformer')
@@ -63,28 +64,32 @@ class ImageTransformer(Node):
             10)
 
         self.image_topic_name = '/image_raw'
-        image_bag = True
 
-        if image_bag:
-            camera_obj = Camera(K_matrix=get_intrinsic_matrix())
-            vehicle_obj = VehicleGeometry(cam_height=1, len_vehicle_shadow=2.24, len_vehicle_front=1.0)
+        image_bag_flag = True
+        full_setup_flag = False
 
-            rotation_matrix = np.array([[0, 0, 1],
-                        [-1, 0, 0],
-                        [0, -1, 0]])
+        if image_bag_flag:
 
-            translation_vector = np.array([0, 0, 1]) 
+            if full_setup_flag:
+                camera_obj = Camera(K_matrix=get_intrinsic_matrix())
+                vehicle_obj = VehicleGeometry(cam_height=1, len_vehicle_shadow=2.24, len_vehicle_front=1.0)
+            
+                rotation_matrix = np.array([[0, 0, 1],
+                            [-1, 0, 0],
+                            [0, -1, 0]])
 
-            self.vision_calc = VisionCalculation(
-                camera_object=camera_obj,
-                vehicle_object=vehicle_obj,
-                rotation_cam_to_world=rotation_matrix,
-                translation_cam_to_world=translation_vector
-            )
+                translation_vector = np.array([0, 0, 1]) 
 
-            self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,1,0]), test_vec_worldframe=np.array([0, 0, 1]))
+                self.vision_calc = VisionCalculation(
+                    camera_object=camera_obj,
+                    vehicle_object=vehicle_obj,
+                    rotation_cam_to_world=rotation_matrix,
+                    translation_cam_to_world=translation_vector
+                )
 
-            self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
+                self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,1,0]), test_vec_worldframe=np.array([0, 0, 1]))
+
+                self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
             
             self.subscription = self.create_subscription(
                 Image,
@@ -92,7 +97,6 @@ class ImageTransformer(Node):
                 self.execute_callback,
                 10
             )
-
         else:
             # Create subscription with the callback group
             self.subscription = self.create_subscription(
@@ -106,6 +110,9 @@ class ImageTransformer(Node):
 
             # Wait for the initial data
             self.get_logger().info('Waiting for initial data from topic...')
+
+        self.get_logger().info("Init finished")
+
 
     def _initial_data_callback(self, msg):
         
@@ -174,7 +181,17 @@ class ImageTransformer(Node):
             self.execute_callback,
             10
         )
-    
+
+    def execute_callback(self, msg):
+        self.get_logger().info('Receiving video frame')
+        # Convert ROS Image message to OpenCV2 image
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        except CvBridgeError as e:
+            self.get_logger().error(f'CvBridge Error: {e}')
+        
+        self.test(cv_image)
+        return
 
     def test(self, image):
         # --- 1) Crop and edge-detect as before ---
@@ -193,6 +210,8 @@ class ImageTransformer(Node):
         # --- 2) Define bottom-center and initialize trackers ---
         h_e, w_e = edges.shape
         target = np.array([w_e // 2, h_e - 1])
+
+        print("Target:", target)
 
         left_min = float('inf')
         right_min = float('inf')
@@ -248,139 +267,34 @@ class ImageTransformer(Node):
         cv2.line(curve_img, (int(yl[50]), int(xl[50])), (int(yr[50]), int(xr[50])), (0, 0, 255), 2)
         
         cv2.imshow("Curves", curve_img)
-        cv2.waitKey(1)
+        #cv2.waitKey(1)
+        #return
+
+        key = cv2.waitKey(0) & 0xFF  # Mask to handle cross-platform issues
+
+        if key == ord('s'):
+            # Save the image
+            save_path = './manually_saved_images'
+            os.makedirs(save_path, exist_ok=True)
+            num_items = len(os.listdir(save_path))
+            filename = os.path.join(save_path, f"saved_image_{num_items:05d}.png")
+
+            if not cv2.imwrite(filename, curve_img):
+                self.get_logger().error(f"Failed to save image: {filename}")
+            else:
+                self.get_logger().info(f"Saved {filename}")
+                
+        else:
+            print("Image not saved.")
+
+        # Close the window
         #cv2.destroyAllWindows()
 
         return 
 
-
-        
-        # Optional: visualize results
-        #cv2.imshow("Original Region", roi)
-        #cv2.imshow("Hard Edges", edges)
-
-        #cv2.imshow("Camera Feed", image)
-        cv2.waitKey(1)
-
-        return
-        
-        # Test the homography matrix
-        image = cv2.imread("/root/ros2_autonomous_racing/src/image_controller/camera_view.png")
-        
-        print(self.compute_min_distance(image))
-        
-        return
-        """print(self.camera_obj.rotation_world_to_cam @ np.array([0, 0, 1]) + np.array([0, 0, 1]))
-        print(self.camera_obj.camframe_to_worldframe(np.array([0, 1, 0])))
-        print(self.camera_obj.world_normal_camframe)"""
-
-        # Apply the homography transform
-        #transformed_image = cv2.warpPerspective(image, self.H, (image.shape[1], image.shape[0]))
-        transformed_image = image.copy()
-        transformed_image[200:205, 100:105] = [255, 0, 0]  # Draw a red square on the transformed image
-        # Display the original and transformed images
-        cv2.imshow("Original Image", image)
-        cv2.imshow("Transformed Image", transformed_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-    def compute_min_distance(self, image):
-        # Convert the image to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        # Threshold the image to create a binary image
-        _, binary = cv2.threshold(gray, 190, 255, cv2.THRESH_BINARY)
-
-        #binary[547, 0:800] = 255
-
-        # Initialize minimum distance
-        min_distance = float(-1)
-
-        # Loop through each contour
-        for v in range(self.min_carless_pixel, 400, -1):  # from min_carless_pixel (about 650) to 400 inclusive
-            if binary[v, 400] == 255:    # (v, u) == (y, x)
-                # Calculate the distance from the contour to the camera
-                min_distance = self.vision_calc.compute_dist(400, v) # (u, v)
-                print(v)
-                return min_distance   
-
-        return min_distance     
-
-    def compute_next_waypoint(self, image):
-        # Convert the image to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        # Threshold the image to create a binary image
-        _, binary = cv2.threshold(gray, 190, 255, cv2.THRESH_BINARY)
-
-        # Find contours in the binary image
-        # Image size (make sure it's large enough to contain the line)
-        height, width = 800, 800
-        mask = np.zeros((height, width), dtype=np.uint8)
-
-        # Define start and end points
-        pt1 = (10, 20)
-        pt2 = (80, 90)
-
-        # Draw line on mask
-        cv2.line(mask, pt1, pt2, color=255, thickness=1)
-
-        # Get coordinates of the pixels on the line
-        line_pixels = np.column_stack(np.where(mask > 0))  # (row, col) = (y, x)
-
-        # Convert to (x, y) format if needed
-        line_pixels = [(x, y) for y, x in line_pixels]
-
-        print(line_pixels)
-
-
-    def execute_callback(self, msg):
-        # print(self.vision_calc.grid_coordinates[799, 400])
-        
-        self.get_logger().info('Receiving video frame')
-        # Convert ROS Image message to OpenCV2 image
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        except CvBridgeError as e:
-            self.get_logger().error(f'CvBridge Error: {e}')
-
-        #transformed_image = cv2.warpPerspective(image, H, (image.shape[1], image.shape[0]))
-        #cv2.imwrite("/root/ros2_autonomous_racing/camera_view.png", cv_image)
-
-        # compute minimum distance
-        compute_min_distance = self.compute_min_distance(cv_image)
-        self.get_logger().info(f'Minimum distance: {compute_min_distance}')
-        msg = Float32()
-        msg.data = compute_min_distance
-        self.publisher_.publish(msg)
-
-        compute_next_waypoint = self.compute_next_waypoint(cv_image)
-        
-        cv2.imshow("Camera Feed", image)
-        cv2.waitKey(1)
-
-
-def main(args=None):
-    rclpy.init(args=args)
-
-    image_transformer = ImageTransformer()
-    #image_transformer.test()
-    #image_transformer.camera_obj.test_camera_geometry(
-    #    test_vec_camframe=np.array([1, 0, 0]),
-    #    test_vec_worldframe=np.array([0, 1, 0])
-    #)
-
-    #print(image_transformer.camera_obj.uv_to_XYZ_worldframe(400, 800))
-
-    #image_transformer.test()
-
-    rclpy.spin(image_transformer)
-
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
-    image_transformer.destroy_node()
-    rclpy.shutdown()
-
 if __name__ == '__main__':
-    main()
+    rclpy.init()
+    test_node = Test()
+    rclpy.spin(test_node)
+    test_node.destroy_node()
+    rclpy.shutdown()
