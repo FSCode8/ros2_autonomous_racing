@@ -11,19 +11,20 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 
 set(dependencies
   rclcpp
   geometry_msgs
   std_msgs
+  rcl_interfaces
 )
 
 # Include directories
 include_directories(include)
 
-# Add the AEBNode executable
-add_executable(aeb_node src/aeb_node.cpp)
-ament_target_dependencies(aeb_node ${dependencies})
+
+
 
 # Add the BicycleControlNode executable
 add_executable(bicycle_control_node src/bicycle_control_node.cpp)
@@ -41,12 +42,16 @@ ament_target_dependencies(drive ${dependencies})
 add_executable(simulation_drive src/simulation_drive.cpp)
 ament_target_dependencies(simulation_drive ${dependencies})
 
-# Install the executables
-# add executables
+# add_executable(bicycle_control_node src/bicycle_control_node.cpp)
 add_executable(ttc_node src/ttc.cpp)
+ament_target_dependencies(ttc_node ${dependencies})
+
+# Add the AEBNode executable
 add_executable(aeb_node src/aeb.cpp)
-ament_target_dependencies(ttc_node rclcpp std_msgs geometry_msgs)
-ament_target_dependencies(aeb_node rclcpp std_msgs geometry_msgs)
+ament_target_dependencies(aeb_node ${dependencies})
+
+
+
 install(TARGETS
   ttc_node
   aeb_node

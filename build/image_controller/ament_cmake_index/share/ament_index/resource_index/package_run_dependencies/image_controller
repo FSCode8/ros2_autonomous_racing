@@ -1,1 +1,0 @@
-rclcpp;rclpy;rosbag2_cpp;std_msgs;sensor_msgs;rosbag2_transport;cv_bridge;python3-opencv;python3-numpy;ament_lint_auto;ament_lint_common
