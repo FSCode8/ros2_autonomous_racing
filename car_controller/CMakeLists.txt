@@ -42,13 +42,25 @@ add_executable(simulation_drive src/simulation_drive.cpp)
 ament_target_dependencies(simulation_drive ${dependencies})
 
 # Install the executables
+# add executables
+add_executable(ttc_node src/ttc.cpp)
+add_executable(aeb_node src/aeb.cpp)
+ament_target_dependencies(ttc_node rclcpp std_msgs geometry_msgs)
+ament_target_dependencies(aeb_node rclcpp std_msgs geometry_msgs)
 install(TARGETS
+  ttc_node
   aeb_node
   bicycle_control_node
   angle_simulation_node
   drive
   simulation_drive
   DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
 )
 
 

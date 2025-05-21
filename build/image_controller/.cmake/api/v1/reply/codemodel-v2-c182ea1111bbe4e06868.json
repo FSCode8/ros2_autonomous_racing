@@ -1,0 +1,115 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-e4167e2b96c24e354504.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "image_controller",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "ament_cmake_python_build_image_controller_egg::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ament_cmake_python_build_image_controller_egg-458ce80b8a44fb2afc22.json",
+					"name" : "ament_cmake_python_build_image_controller_egg",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "ament_cmake_python_copy_image_controller::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-ament_cmake_python_copy_image_controller-e11d077b76e3a6211bdd.json",
+					"name" : "ament_cmake_python_copy_image_controller",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "image_bag_reader::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-image_bag_reader-f7d5357e386f1ebdb34f.json",
+					"name" : "image_bag_reader",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "image_controller_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-image_controller_uninstall-a9b29774adc7607f52ba.json",
+					"name" : "image_controller_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "image_recorder::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-image_recorder-515b273bfbef1e00e6e7.json",
+					"name" : "image_recorder",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "image_transformer::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-image_transformer-06b9144a6372977f2cfc.json",
+					"name" : "image_transformer",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-810c3790897aeb8b753d.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/root/ros2_autonomous_racing/src/build/image_controller",
+		"source" : "/root/ros2_autonomous_racing/src/image_controller"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}
