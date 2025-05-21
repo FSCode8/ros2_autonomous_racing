@@ -19,7 +19,7 @@ public:
 
     ModelCarBicycleControlNode() : Node("model_car_bicycle_control_node"), remaining_heading_change_(0.0), drive_mode_(DriveMode::STRAIGHT) {
         // Parameter deklarieren und initialisieren
-        this->declare_parameter<double>("linear_speed", 3.0); // Lineare Geschwindigkeit in m/s
+        this->declare_parameter<double>("linear_speed", 1.5); // Lineare Geschwindigkeit in m/s
         this->declare_parameter<double>("k_p", 2.0);          // Proportionalverstärkung für den Lenkregler. MUSS ggf. ERHÖHT werden.
         this->declare_parameter<double>("wheelbase", 0.365);      // Radstand des Fahrzeugs in Metern. SEHR WICHTIG für korrekte Kinematik.
         this->declare_parameter<double>("max_steering_angle", 0.436332); // Max. Lenkwinkel (ca. 25 Grad) in Radiant

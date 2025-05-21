@@ -16,13 +16,24 @@ public:
   {
     publisher_ = this->create_publisher<std_msgs::msg::Float64>("target/angle", 10);
     start_time_ = this->now();
-    // Timer: alle 10 s wird geprüft, ob ein neuer Winkel vorhanden ist
+    // Kurzer Timer für erste Publikation
     timer_ = this->create_wall_timer(
-      10s, std::bind(&AngleSimulationNode::publish_angle, this));
+      100ms, std::bind(&AngleSimulationNode::first_publish, this));
     RCLCPP_INFO(this->get_logger(), "AngleSimulationNode gestartet mit initial -0.785 rad (ca. -45°).");
   }
 
 private:
+  // Neue Methode für erste Publikation
+  void first_publish() {
+    // Timer stoppen (einmalig)
+    timer_->cancel();
+    // Ersten Winkel publizieren
+    publish_angle();
+    // Regulären Timer starten mit 7.5 Sekunden statt 10 Sekunden
+    timer_ = this->create_wall_timer(
+      5000ms, std::bind(&AngleSimulationNode::publish_angle, this));
+  }
+
   void publish_angle() {
     // Nach 20 s soll auf 0.785 rad gewechselt werden (einmaliger Wechsel)
     if ((this->now() - start_time_).seconds() >= 30.0 && current_angle_ != 0.785) {
