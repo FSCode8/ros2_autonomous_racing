@@ -7,9 +7,29 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+# add executables
+add_executable(ttc_node src/ttc.cpp)
+add_executable(aeb_node src/aeb.cpp)
+ament_target_dependencies(ttc_node rclcpp std_msgs geometry_msgs)
+ament_target_dependencies(aeb_node rclcpp std_msgs geometry_msgs)
+install(TARGETS
+  ttc_node
+  aeb_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
