@@ -440,7 +440,7 @@ class LaneGridPublisher(Node):
 
         self.grid = start_occupancy_grid()
 
-        self.pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
+        self.pub = self.create_publisher(OccupancyGrid, '/occ_grid', 10)
         self.timer = self.create_timer(0.5, self.publish_grid)
 
     def publish_grid(self):
