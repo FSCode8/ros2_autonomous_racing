@@ -33,11 +33,21 @@ ament_target_dependencies(bicycle_control_node ${dependencies})
 add_executable(angle_simulation_node src/angle_simulation_node.cpp)
 ament_target_dependencies(angle_simulation_node ${dependencies})
 
+# Add the Drive Node executable
+add_executable(drive src/drive.cpp)
+ament_target_dependencies(drive ${dependencies})
+
+# Add the SimulationDrive Node executable
+add_executable(simulation_drive src/simulation_drive.cpp)
+ament_target_dependencies(simulation_drive ${dependencies})
+
 # Install the executables
 install(TARGETS
   aeb_node
   bicycle_control_node
   angle_simulation_node
+  drive
+  simulation_drive
   DESTINATION lib/${PROJECT_NAME}
 )
 
