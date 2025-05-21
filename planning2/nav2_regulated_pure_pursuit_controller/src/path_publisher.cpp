@@ -19,24 +19,31 @@ public:
   FollowPathClient()
   : Node("follow_path_cpp_client")
   {
-    client_ = rclcpp_action::create_client<FollowPath>(this, "/follow_path");
+    this->client_ = rclcpp_action::create_client<FollowPath>(this, "/follow_path");
 
     // Wait for the action server
-    if (!client_->wait_for_action_server(5s)) {
+    if (!this->client_->wait_for_action_server(5s)) {
       RCLCPP_ERROR(get_logger(), "Action server not available!");
       return;
+    } else {
+      RCLCPP_INFO(get_logger(), "Action server available!");
     }
 
-    // Create a dummy path
+    // Create a longer path
     auto path_msg = nav_msgs::msg::Path();
-    path_msg.header.frame_id = "base_link";
+    path_msg.header.frame_id = "map";
     path_msg.header.stamp = now();
 
     geometry_msgs::msg::PoseStamped pose;
-    pose.header.frame_id = "base_link";
-    pose.pose.position.x = 2.0;
+    pose.header.frame_id = "map";
     pose.pose.orientation.w = 1.0;
-    path_msg.poses.push_back(pose);
+
+    // Add 20 points spaced 0.5m apart along the x-axis
+    for (int i = 0; i < 20; ++i) {
+      pose.pose.position.x = i * 0.5;
+      pose.pose.position.y = 0.0;
+      path_msg.poses.push_back(pose);
+    }
 
     // Create a goal
     auto goal_msg = FollowPath::Goal();
@@ -48,7 +55,7 @@ public:
       RCLCPP_INFO(rclcpp::get_logger("FollowPathClient"), "Result received: %d", static_cast<int>(result.code));
     };
 
-    client_->async_send_goal(goal_msg, send_goal_options);
+    this->client_->async_send_goal(goal_msg, send_goal_options);
   }
 
 private:
