@@ -12,6 +12,7 @@ find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 
 nav2_package()
 set(CMAKE_CXX_STANDARD 17)
@@ -30,12 +31,15 @@ set(dependencies
   nav2_core
   tf2
   tf2_geometry_msgs
+  nav2_msgs
 )
 
 set(library_name nav2_regulated_pure_pursuit_controller)
 
+# Build the regulated pure pursuit controller library
 add_library(${library_name} SHARED
-        src/regulated_pure_pursuit_controller.cpp)
+  src/regulated_pure_pursuit_controller.cpp
+)
 
 ament_target_dependencies(${library_name}
   ${dependencies}
@@ -49,6 +53,19 @@ install(TARGETS ${library_name}
 
 install(DIRECTORY include/
   DESTINATION include/
+)
+
+# Build the path_publisher_node executable
+add_executable(path_publisher_node
+  src/path_publisher.cpp
+)
+
+ament_target_dependencies(path_publisher_node
+  ${dependencies}
+)
+
+install(TARGETS path_publisher_node
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
@@ -66,4 +83,3 @@ ament_export_dependencies(${dependencies})
 pluginlib_export_plugin_description_file(nav2_core nav2_regulated_pure_pursuit_controller.xml)
 
 ament_package()
-
