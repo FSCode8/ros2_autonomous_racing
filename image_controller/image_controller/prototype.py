@@ -420,7 +420,7 @@ class Test(Node):
         #cv2.line(curve_img, pt1, pt2, color=(0, 0, 255), thickness=2)
         
         cv2.imshow("Curves", curve_img)
-        cv2.waitKey(1)
+        cv2.waitKey(0)
         return
 
     def image_viewer(self, image):
