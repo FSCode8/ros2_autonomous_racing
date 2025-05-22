@@ -31,11 +31,11 @@ public:
 
     // Create a longer path
     auto path_msg = nav_msgs::msg::Path();
-    path_msg.header.frame_id = "map";
+    path_msg.header.frame_id = "odom";
     path_msg.header.stamp = now();
 
     geometry_msgs::msg::PoseStamped pose;
-    pose.header.frame_id = "map";
+    pose.header.frame_id = "odom";
     pose.pose.orientation.w = 1.0;
 
     // Add 20 points spaced 0.5m apart along the x-axis
