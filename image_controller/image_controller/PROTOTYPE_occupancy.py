@@ -58,7 +58,7 @@ for i in range(P.shape[0]):
 class LaneGridPublisher(Node):
     def __init__(self):
         super().__init__('lane_grid_pub')
-        self.pub = self.create_publisher(OccupancyGrid, '/occ_grid', 10)
+        self.pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
         self.timer = self.create_timer(0.5, self.publish_grid)
 
     def publish_grid(self):

@@ -38,7 +38,7 @@ local_costmap/local_costmap:
       enabled: true
       observation_sources: "camera_grid"
       camera_grid:
-        topic: /occ_grid
+        topic: /lane_grid
         max_obstacle_height: 2.0
         clearing: true
         marking: true
