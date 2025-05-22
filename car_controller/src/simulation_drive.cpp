@@ -35,16 +35,16 @@ private:
 
         if (state_ == 0) {
             // Straight
-            twist_msg.twist.linear.x = 0.32;  // Move forward
+            twist_msg.twist.linear.x = 0.22;  // Move forward
             twist_msg.twist.angular.z = 0.0; // No rotation
         } else if (state_ == 1) {
+            // Turn right
+            twist_msg.twist.linear.x = 0.3;  // Move forward
+            twist_msg.twist.angular.z = -1.0; // Turn right
+        } else if (state_ == 2) {
             // Turn left
             twist_msg.twist.linear.x = 0.3;  // Move forward
-            twist_msg.twist.angular.z = -0.5; // Turn left
-        } else if (state_ == 2) {
-            // Turn right
-            twist_msg.twist.linear.x = 1.0;  // Move forward
-            twist_msg.twist.angular.z = 0.5; // Turn right
+            twist_msg.twist.angular.z = 1.0; // Turn left
         }
 
         publisher_->publish(twist_msg);

@@ -3,8 +3,8 @@ drive:
   ros__parameters:
     linear_x_coeff: 1.0
     linear_x_offset: 0.0
-    linear_x_min: -0.48
-    linear_x_max: 0.48
+    linear_x_min: -0.4
+    linear_x_max: 0.4
 
     linear_y_coeff: 1.0
     linear_y_offset: 0.0
@@ -28,7 +28,7 @@ drive:
 
     angular_z_coeff: 1.0
     angular_z_offset: 0.0
-    angular_z_min: -2.0
-    angular_z_max: 2.0
+    angular_z_min: -0.26
+    angular_z_max: 0.65
 
     output_frame_id: "drive"
