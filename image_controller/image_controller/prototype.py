@@ -87,7 +87,7 @@ class Test(Node):
 
         # Action client for FollowPath
         self.action_client = ActionClient(self, FollowPath, '/follow_path')
-        self.action_client.wait_for_server()
+        
         #self.get_logger().info("FollowPath action server available!")
 
         if image_bag_flag:
@@ -134,6 +134,7 @@ class Test(Node):
             self.get_logger().info('Waiting for initial data from topic...')
 
         self.get_logger().info("Init finished")
+        self.action_client.wait_for_server()
 
 
     def _initial_data_callback(self, msg):
@@ -615,7 +616,7 @@ if __name__ == '__main__':
         test_node = Test()
         test_node.get_logger().info("Test node has been started.")
         if single_image_flag:
-            image = cv2.imread('./manually_saved_images/saved_image_00001.png')  # Replace with your actual path
+            image = cv2.imread('./src/manually_saved_images/saved_image_00001.png')  # Replace with your actual path
 
             # Check if the image was loaded successfully
             if image is None:
