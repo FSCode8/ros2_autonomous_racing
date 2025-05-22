@@ -17,11 +17,13 @@ from std_msgs.msg import Float32
 from nav_msgs.msg import OccupancyGrid
 from std_msgs.msg  import Header
 from geometry_msgs.msg import Pose
+from nav_msgs.msg import Path
 
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
+from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PointStamped
 import tf2_geometry_msgs
 
@@ -49,6 +51,18 @@ class Test(Node):
         super().__init__('image_transformer')
         # NOTE: Add server for camera_info?
 
+        # Vehicle constants
+        self.cam_height = 1.5
+        self.len_vehicle_front = 1.0
+        self.len_vehicle_shadow = 2.24
+        self.image_height = 800
+        self.image_width = 800
+
+        self.image_topic_name = '/image_raw'
+
+        image_bag_flag = True
+        full_setup_flag = True
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -66,22 +80,17 @@ class Test(Node):
             '/next_waypoint',
             10)
 
-        self.image_topic_name = '/image_raw'
-
-        image_bag_flag = True
-        full_setup_flag = False
-
         if image_bag_flag:
 
             if full_setup_flag:
                 camera_obj = Camera(K_matrix=get_intrinsic_matrix())
-                vehicle_obj = VehicleGeometry(cam_height=1, len_vehicle_shadow=2.24, len_vehicle_front=1.0)
+                vehicle_obj = VehicleGeometry(cam_height=self.cam_height , len_vehicle_shadow=self.len_vehicle_shadow, len_vehicle_front=self.len_vehicle_front)
             
                 rotation_matrix = np.array([[0, 0, 1],
                             [-1, 0, 0],
                             [0, -1, 0]])
 
-                translation_vector = np.array([0, 0, 1]) 
+                translation_vector = np.array([0, 0, self.cam_height]) 
 
                 self.vision_calc = VisionCalculation(
                     camera_object=camera_obj,
@@ -90,7 +99,7 @@ class Test(Node):
                     translation_cam_to_world=translation_vector
                 )
 
-                self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,1,0]), test_vec_worldframe=np.array([0, 0, 1]))
+                self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,self.cam_height,0]), test_vec_worldframe=np.array([0, 0, self.cam_height]))
 
                 self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
             
@@ -126,7 +135,7 @@ class Test(Node):
         self.get_logger().info('Subscription closed after receiving initial data')
 
         camera_obj = Camera(K_matrix=self._intrinsic_matrix)
-        vehicle_obj = VehicleGeometry(cam_height=1, len_vehicle_shadow=2.24, len_vehicle_front=1.0)      
+        vehicle_obj = VehicleGeometry(cam_height=self.cam_height , len_vehicle_shadow=self.len_vehicle_shadow, len_vehicle_front=self.len_vehicle_front)     
         
         # get transformation from base_link to camera_link_optical
         from_frame_rel = 'camera_link_optical'
@@ -169,7 +178,7 @@ class Test(Node):
             translation_cam_to_world=translation_vector
         )
 
-        self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,1,0]), test_vec_worldframe=np.array([0, 0, 1]))
+        self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,self.cam_height,0]), test_vec_worldframe=np.array([0, 0, self.cam_height]))
 
         print("POINT:")
         print(self.vision_calc.grid_coordinates[799, 400])
@@ -245,7 +254,7 @@ class Test(Node):
                     right_point = y_max_point
                     right_cnt = cnt
 
-        show_debug = True
+        show_debug = False
         if show_debug:
             # --- 3.5) Draw the target point ---
             cv2.circle(roi, tuple(target), 5, (255, 0, 0), -1)
@@ -312,12 +321,12 @@ class Test(Node):
             curve_img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
             if left_point is None and right_point is None:
                 print("Couldn't find both a left and right contour.")
-                x_left = 0
-                x_right = w_e-1
+                x_left = -1#0
+                x_right = -1#w_e-1
             else:
                 if left_point is None: 
                     print("Couldn't find a left contour.")
-                    x_left = 0
+                    x_left = -1#0
                 else:
                     xl, yl = left_cnt[:, 0, 0], left_cnt[:, 0, 1]
                     for xi, yi in zip(xl.astype(int), yl.astype(int)):
@@ -329,7 +338,7 @@ class Test(Node):
 
                 if right_point is None:
                     print("Couldn't find a right contour.")
-                    x_right = w_e-1
+                    x_right = -1#w_e-1
                 else: 
                     xr, yr = right_cnt[:, 0, 0], right_cnt[:, 0, 1]
                     for xi, yi in zip(xr.astype(int), yr.astype(int)):
@@ -340,11 +349,55 @@ class Test(Node):
                     x_right = xr[idx_right]     # Get corresponding x positions
 
         # Create points
+        current_position = [0.0, 0.0, 0.0]  # X, Y, Z in world frame
+
+        path_msg = Path()
+        path_msg.header.stamp = self.get_clock().now().to_msg()
+        path_msg.header.frame_id = "map"
+
+        # Create a simple curved path
+        path_msg.poses = []
+        for i in range(7):
+            pose = PoseStamped()
+            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.frame_id = "map"
+
+            pixel_y = 100 - i * 15  
+
+            # TODO: Add Logic for the case that left/right boundary goes until right/left side of the image -> point should be outside of the image
+            # NOTE: Rotation is not considered yet 
+
+            if x_left == -1 and x_right == -1:
+                pixel_x = int(w_e / 2.0)  # Default to center if both sides are missing
+            elif x_left == -1:
+                pixel_x = 0
+            elif x_right == -1:
+                pixel_x = int(w_e - 1)
+
+            else:
+                idx_left = np.argmin(np.abs(yl - pixel_y))     # Find closest index in yl to y_target
+                x_left = xl[idx_left]   # Get corresponding x positions
+
+                idx_right = np.argmin(np.abs(yr - pixel_y))    # Find closest index in yr to y_target
+                x_right = xr[idx_right]     # Get corresponding x positions
+
+                pixel_x = int((x_left + x_right) / 2.0)
+            
+            cv2.circle(curve_img, (pixel_x, pixel_y), 3, (0, 0, 255), -1)
+
+            pose.pose.position.x = current_position[0] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][0]  # x coordinate in world frame
+            pose.pose.position.y = current_position[1] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][1]  # y coordinate in world frame 
+            pose.pose.position.z = current_position[2]  # z coordinate in world frame
+            pose.pose.orientation.w = 1.0  # No rotation
+            path_msg.poses.append(pose)
+
+            print(pose.pose.position.x, pose.pose.position.y)
+
         pt1 = (int(x_left), int(y_target))
         pt2 = (int(x_right), int(y_target))
 
         # Draw the horizontal line in red
-        cv2.line(curve_img, pt1, pt2, color=(0, 0, 255), thickness=2)
+        #cv2.line(curve_img, pt1, pt2, color=(0, 0, 255), thickness=2)
         
         cv2.imshow("Curves", curve_img)
         cv2.waitKey(0)
@@ -440,31 +493,57 @@ class LaneGridPublisher(Node):
 
         self.grid = start_occupancy_grid()
 
-        self.pub = self.create_publisher(OccupancyGrid, '/occ_grid', 10)
-        self.timer = self.create_timer(0.5, self.publish_grid)
+        self.pub_grid = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
+        self.pub_path = self.create_publisher(Path, '/lane_path', 10)
+        self.timer = self.create_timer(0.5, self.publish_all)
+
+    def publish_all(self):
+        self.publish_grid()
+        self.publish_path()
+        self.get_logger().info("Published lane grid and path")
 
     def publish_grid(self):
         # assume grid is already computed (above)
         self.grid.header.stamp = self.get_clock().now().to_msg()
-        self.pub.publish(self.grid)
+        self.pub_grid.publish(self.grid)
+
+    def publish_path(self):
+        path_msg = Path()
+        path_msg.header.stamp = self.get_clock().now().to_msg()
+        path_msg.header.frame_id = "map"
+
+        # Create a simple curved path
+        path_msg.poses = []
+        for i in range(20):
+            pose = PoseStamped()
+            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.frame_id = "map"
+            pose.pose.position.x = i * 0.2
+            pose.pose.position.y = 0.0 # math.sin(i * 0.2)
+            pose.pose.orientation.w = 1.0  # No rotation
+            path_msg.poses.append(pose)
+
+        self.pub_path.publish(path_msg)
+        self.get_logger().info("Published path with {} poses".format(len(path_msg.poses)))
 
 if __name__ == '__main__':
 
     single_image_flag = True
-    grid_flag = True
+    grid_flag = False
 
     rclpy.init()
-    test_node = Test()
-
-    grid_node = LaneGridPublisher()
 
     if grid_flag:
         # Start the occupancy grid publisher
+        grid_node = LaneGridPublisher()
+        grid_node.get_logger().info("LaneGridPublisher has been started.")
         rclpy.spin(grid_node)
         grid_node.destroy_node()
     else:
+        test_node = Test()
+        test_node.get_logger().info("Test node has been started.")
         if single_image_flag:
-            image = cv2.imread('./manually_saved_images/saved_image_00006.png')  # Replace with your actual path
+            image = cv2.imread('./manually_saved_images/saved_image_00001.png')  # Replace with your actual path
 
             # Check if the image was loaded successfully
             if image is None:
