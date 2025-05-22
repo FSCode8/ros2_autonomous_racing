@@ -2,6 +2,7 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
+#include "std_msgs/msg/int32.hpp" // Hinzugefügt für Not-Aus
 
 #include <string>
 #include <vector>
@@ -12,7 +13,7 @@ class Drive : public rclcpp::Node
 {
 public:
   Drive()
-  : Node("drive")
+  : Node("drive"), emergency_stop_active_(false) // emergency_stop_active_ initialisieren
   {
     // Parameter Deklaration
     // Struktur: <Achse>_<Komponente>_<Transformationstyp>
@@ -27,18 +28,24 @@ public:
 
     // Publisher für die transformierte TwistStamped Nachricht
     publisher_ = this->create_publisher<geometry_msgs::msg::TwistStamped>(
-      "/ackermann_steering_controller/reference", 10);
+      "/bicycle_steering_controller/reference", 10);
 
     // Subscriber für die eingehende TwistStamped Nachricht
     subscription_ = this->create_subscription<geometry_msgs::msg::TwistStamped>(
       "platzhalter/reference", 10,
       std::bind(&Drive::topic_callback, this, std::placeholders::_1));
 
+    // Subscriber für das Not-Aus Topic
+    emergency_stop_subscriber_ = this->create_subscription<std_msgs::msg::Int32>(
+      "/not/aus", 10,
+      std::bind(&Drive::emergency_stop_callback, this, std::placeholders::_1));
+
     // Callback für Parameter-Änderungen
     param_callback_handle_ = this->add_on_set_parameters_callback(
         std::bind(&Drive::parameters_callback, this, std::placeholders::_1));
 
-    RCLCPP_INFO(this->get_logger(), "Drive Node gestartet. Lauscht auf 'platzhalter/reference' und publiziert auf '/ackermann_steering_controller/reference'.");
+    RCLCPP_INFO(this->get_logger(), "Drive Node gestartet. Lauscht auf 'platzhalter/reference' und publiziert auf '/bicycle_steering_controller/reference'.");
+    RCLCPP_INFO(this->get_logger(), "Lauscht auf Not-Aus-Signal auf '/not/aus'.");
     RCLCPP_INFO(this->get_logger(), "Output frame_id: %s", output_frame_id_.c_str());
   }
 
@@ -79,9 +86,40 @@ private:
     return std::max(min_val, std::min(value, max_val));
   }
 
+  // Callback für Not-Aus Nachrichten
+  void emergency_stop_callback(const std_msgs::msg::Int32::SharedPtr msg)
+  {
+    if (msg->data == 1 && !emergency_stop_active_) {
+      emergency_stop_active_ = true;
+      RCLCPP_WARN(this->get_logger(), "NOT-AUS AKTIVIERT! Alle Befehle werden ignoriert und Fahrzeug gestoppt.");
+      // Sofort einen Null-Befehl senden, um das Fahrzeug anzuhalten
+      geometry_msgs::msg::TwistStamped stop_msg;
+      stop_msg.header.stamp = this->get_clock()->now();
+      stop_msg.header.frame_id = output_frame_id_;
+      stop_msg.twist.linear.x = 0.0;
+      stop_msg.twist.linear.y = 0.0;
+      stop_msg.twist.linear.z = 0.0;
+      stop_msg.twist.angular.x = 0.0;
+      stop_msg.twist.angular.y = 0.0;
+      stop_msg.twist.angular.z = 0.0;
+      publisher_->publish(stop_msg);
+    } else if (msg->data == 0 && emergency_stop_active_) {
+      emergency_stop_active_ = false;
+      RCLCPP_INFO(this->get_logger(), "Not-Aus deaktiviert. Befehlsverarbeitung fortgesetzt.");
+    }
+  }
+
   // Callback für eingehende TwistStamped Nachrichten
   void topic_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg)
   {
+    if (emergency_stop_active_) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "Not-Aus ist aktiv. Eingehende Befehle auf 'platzhalter/reference' werden ignoriert.");
+      // Optional: Weiterhin Null-Befehle senden oder einfach nichts tun
+      // Um sicherzustellen, dass das Fahrzeug gestoppt bleibt, könnte man hier erneut einen Null-Befehl senden.
+      // Für dieses Beispiel ignorieren wir einfach die eingehende Nachricht.
+      return;
+    }
+
     RCLCPP_DEBUG(this->get_logger(), "Eingehende TwistStamped Nachricht empfangen.");
 
     geometry_msgs::msg::TwistStamped out_msg;
@@ -140,8 +178,10 @@ private:
 
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr subscription_;
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr publisher_;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr emergency_stop_subscriber_; // Neuer Subscriber
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
   std::string output_frame_id_;
+  bool emergency_stop_active_; // Neuer Member für Not-Aus-Status
 };
 
 int main(int argc, char * argv[])

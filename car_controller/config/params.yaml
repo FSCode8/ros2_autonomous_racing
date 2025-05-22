@@ -1,10 +1,10 @@
 # filepath: params.yaml
 drive:
   ros__parameters:
-    linear_x_coeff: 5.0
+    linear_x_coeff: 1.0
     linear_x_offset: 0.0
-    linear_x_min: -1000.0
-    linear_x_max: 3.0
+    linear_x_min: -0.48
+    linear_x_max: 0.48
 
     linear_y_coeff: 1.0
     linear_y_offset: 0.0
@@ -26,9 +26,9 @@ drive:
     angular_y_min: -1000.0
     angular_y_max: 1000.0
 
-    angular_z_coeff: 5.0
+    angular_z_coeff: 1.0
     angular_z_offset: 0.0
-    angular_z_min: -1000.0
-    angular_z_max: 1000.0
+    angular_z_min: -2.0
+    angular_z_max: 2.0
 
     output_frame_id: "drive"
