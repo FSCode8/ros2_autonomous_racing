@@ -82,6 +82,14 @@ class Test(Node):
             '/next_waypoint',
             10)
 
+        # Publisher for the occupancy grid
+        self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
+
+        # Action client for FollowPath
+        self.action_client = ActionClient(self, FollowPath, '/follow_path')
+        self.action_client.wait_for_server()
+        #self.get_logger().info("FollowPath action server available!")
+
         if image_bag_flag:
 
             if full_setup_flag:
@@ -355,14 +363,14 @@ class Test(Node):
 
         path_msg = Path()
         path_msg.header.stamp = self.get_clock().now().to_msg()
-        path_msg.header.frame_id = "map"
+        path_msg.header.frame_id = "odom"
 
         # Create a simple curved path
         path_msg.poses = []
-        for i in range(7):
+        for i in range(6):
             pose = PoseStamped()
             pose.header.stamp = self.get_clock().now().to_msg()
-            pose.header.frame_id = "map"
+            pose.header.frame_id = "odom"
 
             pixel_y = 100 - i * 15  
 
@@ -395,6 +403,15 @@ class Test(Node):
 
             print(pose.pose.position.x, pose.pose.position.y)
 
+        # Publisher for the occupancy grid
+        self.publish_grid()
+
+        goal_msg = FollowPath.Goal()
+        goal_msg.path = path_msg
+
+        self.get_logger().info("Sending path to FollowPath action server...")
+        self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
+
         pt1 = (int(x_left), int(y_target))
         pt2 = (int(x_right), int(y_target))
 
@@ -402,7 +419,7 @@ class Test(Node):
         #cv2.line(curve_img, pt1, pt2, color=(0, 0, 255), thickness=2)
         
         cv2.imshow("Curves", curve_img)
-        cv2.waitKey(0)
+        cv2.waitKey(1)
         return
 
     def image_viewer(self, image):
@@ -431,6 +448,44 @@ class Test(Node):
                 
         else:
             print("Image not saved.")
+
+    def publish_grid(self):
+        # Example occupancy grid (replace with your logic as needed)
+        resolution = 0.05
+        x_min, x_max = -35.0, +35.0
+        y_min, y_max = -35.0, +35.0
+        width  = int((x_max - x_min) / resolution)
+        height = int((y_max - y_min) / resolution)
+
+        grid = OccupancyGrid()
+        grid.header = Header()
+        grid.header.frame_id = "odom"
+        grid.info.resolution = resolution
+        grid.info.width  = width
+        grid.info.height = height
+        grid.info.origin.position.x = 3.0
+        grid.info.origin.position.y = 4.0
+        grid.info.origin.position.z = 0.0
+
+        # Example: all unknown
+        data = np.full((height, width), -1, dtype=np.int8)
+        grid.data = data.flatten().tolist()
+
+        self.grid_pub.publish(grid)
+        self.get_logger().info("Published occupancy grid to /lane_grid")
+
+    def goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('FollowPath goal rejected')
+            return
+        self.get_logger().info('FollowPath goal accepted')
+        goal_handle.get_result_async().add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        result = future.result().result
+        status = future.result().status
+        self.get_logger().info(f"FollowPath action finished with status: {status}")
 
 
 def start_occupancy_grid():
@@ -464,31 +519,6 @@ def start_occupancy_grid():
 
     return grid
 
-    # for each pixel in your probability map…
-    for i in range(P.shape[0]):
-        for j in range(P.shape[1]):
-            prob = P[i, j]
-
-            # compute world coords of this pixel
-            x, y, z = pixel_to_world(i, j)   # your reprojection
-
-            # compute grid indices
-            gx = int((x - x_min) / resolution)
-            gy = int((y - y_min) / resolution)
-
-            # check bounds
-            if 0 <= gx < width and 0 <= gy < height:
-                # decide occupancy: e.g.
-                if prob > 0.5:
-                    # “lane” pixels as free
-                    data[gy, gx] = int((1.0 - prob) * 99)  
-                    # (higher prob → lower cost)
-                else:
-                    # non‑lane as occupied
-                    data[gy, gx] = 100
-
-    return grid
-
 
 class LaneGridPublisher(Node):
     def __init__(self):
@@ -518,7 +548,7 @@ class LaneGridPublisher(Node):
 
         grid = OccupancyGrid()
         grid.header = Header()
-        grid.header.frame_id = "map"
+        grid.header.frame_id = "odom"
         grid.info.resolution = resolution
         grid.info.width  = width
         grid.info.height = height
@@ -571,7 +601,7 @@ class LaneGridPublisher(Node):
 if __name__ == '__main__':
 
     single_image_flag = True
-    grid_flag = True
+    grid_flag = False
 
     rclpy.init()
 

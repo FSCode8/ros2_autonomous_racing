@@ -14,7 +14,7 @@ class VehicleGeometry:
         self.cam_height = cam_height
         self.len_vehicle_shadow = len_vehicle_shadow
         self.len_vehicle_front = len_vehicle_front
-        self.shadow_point = np.array([0, 1, 3.22]) # (Xc, Yc, Zc).T
+        self.shadow_point = np.array([0, cam_height, len_vehicle_shadow+len_vehicle_front]) # (Xc, Yc, Zc).T
 
 
 class VisionCalculation:
@@ -39,7 +39,7 @@ class VisionCalculation:
         self.translation_cam_to_world = translation_cam_to_world 
 
         # compute vector nc
-        self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -1])
+        self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -self.vehicle.cam_height])
 
         self.grid_coordinates = self.precompute_grid()
 
