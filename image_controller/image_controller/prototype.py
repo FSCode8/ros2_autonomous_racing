@@ -8,6 +8,8 @@ from image_controller.VisionCalculation import VisionCalculation
 import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
+from rclpy.action import ActionClient
+from nav2_msgs.action import FollowPath
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from sensor_msgs.msg import Image
@@ -487,49 +489,89 @@ def start_occupancy_grid():
 
     return grid
 
+
 class LaneGridPublisher(Node):
     def __init__(self):
         super().__init__('lane_grid_pub')
 
-        self.grid = start_occupancy_grid()
+        # Publisher for the occupancy grid
+        self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
 
-        self.pub_grid = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
-        self.pub_path = self.create_publisher(Path, '/lane_path', 10)
-        self.timer = self.create_timer(0.5, self.publish_all)
+        # Action client for FollowPath
+        self.action_client = ActionClient(self, FollowPath, '/follow_path')
+        self.action_client.wait_for_server()
+        self.get_logger().info("FollowPath action server available!")
 
-    def publish_all(self):
+        # Publish the occupancy grid once at startup
         self.publish_grid()
-        self.publish_path()
-        self.get_logger().info("Published lane grid and path")
+
+        # Send the path once at startup
+        self.send_path_goal()
 
     def publish_grid(self):
-        # assume grid is already computed (above)
-        self.grid.header.stamp = self.get_clock().now().to_msg()
-        self.pub_grid.publish(self.grid)
+        # Example occupancy grid (replace with your logic as needed)
+        resolution = 0.05
+        x_min, x_max = -35.0, +35.0
+        y_min, y_max = -35.0, +35.0
+        width  = int((x_max - x_min) / resolution)
+        height = int((y_max - y_min) / resolution)
 
-    def publish_path(self):
+        grid = OccupancyGrid()
+        grid.header = Header()
+        grid.header.frame_id = "map"
+        grid.info.resolution = resolution
+        grid.info.width  = width
+        grid.info.height = height
+        grid.info.origin.position.x = 3.0
+        grid.info.origin.position.y = 4.0
+        grid.info.origin.position.z = 0.0
+
+        # Example: all unknown
+        data = np.full((height, width), -1, dtype=np.int8)
+        grid.data = data.flatten().tolist()
+
+        self.grid_pub.publish(grid)
+        self.get_logger().info("Published occupancy grid to /lane_grid")
+
+    def send_path_goal(self):
         path_msg = Path()
         path_msg.header.stamp = self.get_clock().now().to_msg()
-        path_msg.header.frame_id = "map"
+        path_msg.header.frame_id = "odom"
 
-        # Create a simple curved path
+        # Create a simple straight path
         path_msg.poses = []
         for i in range(20):
             pose = PoseStamped()
             pose.header.stamp = self.get_clock().now().to_msg()
-            pose.header.frame_id = "map"
+            pose.header.frame_id = "odom"
             pose.pose.position.x = i * 0.2
-            pose.pose.position.y = 0.0 # math.sin(i * 0.2)
-            pose.pose.orientation.w = 1.0  # No rotation
+            pose.pose.position.y = 0.0
+            pose.pose.orientation.w = 1.0
             path_msg.poses.append(pose)
 
-        self.pub_path.publish(path_msg)
-        self.get_logger().info("Published path with {} poses".format(len(path_msg.poses)))
+        goal_msg = FollowPath.Goal()
+        goal_msg.path = path_msg
+
+        self.get_logger().info("Sending path to FollowPath action server...")
+        self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
+
+    def goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('FollowPath goal rejected')
+            return
+        self.get_logger().info('FollowPath goal accepted')
+        goal_handle.get_result_async().add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        result = future.result().result
+        status = future.result().status
+        self.get_logger().info(f"FollowPath action finished with status: {status}")
 
 if __name__ == '__main__':
 
     single_image_flag = True
-    grid_flag = False
+    grid_flag = True
 
     rclpy.init()
 
