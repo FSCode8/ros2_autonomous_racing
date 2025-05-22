@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <limits> // Für std::numeric_limits
 
 class Drive : public rclcpp::Node
 {
@@ -45,6 +46,8 @@ private:
   struct TransformValue {
     double coeff;
     double offset;
+    double min_val;
+    double max_val;
   };
 
   // Deklariert alle notwendigen Parameter für Koeffizienten und Offsets
@@ -54,7 +57,9 @@ private:
     for (const auto& comp : components) {
       this->declare_parameter<double>(comp + "_coeff", 1.0);
       this->declare_parameter<double>(comp + "_offset", 0.0);
-      RCLCPP_INFO(this->get_logger(), "Parameter deklariert: %s_coeff (default: 1.0), %s_offset (default: 0.0)", comp.c_str(), comp.c_str());
+      this->declare_parameter<double>(comp + "_min", -std::numeric_limits<double>::infinity());
+      this->declare_parameter<double>(comp + "_max", std::numeric_limits<double>::infinity());
+      RCLCPP_INFO(this->get_logger(), "Parameter deklariert: %s_coeff (default: 1.0), %s_offset (default: 0.0), %s_min (default: -inf), %s_max (default: +inf)", comp.c_str(), comp.c_str(), comp.c_str(), comp.c_str());
     }
   }
 
@@ -64,7 +69,14 @@ private:
     TransformValue params;
     params.coeff = this->get_parameter(base_name + "_coeff").as_double();
     params.offset = this->get_parameter(base_name + "_offset").as_double();
+    params.min_val = this->get_parameter(base_name + "_min").as_double();
+    params.max_val = this->get_parameter(base_name + "_max").as_double();
     return params;
+  }
+
+  // Hilfsfunktion zum Klemmen eines Wertes
+  double clamp(double value, double min_val, double max_val) {
+    return std::max(min_val, std::min(value, max_val));
   }
 
   // Callback für eingehende TwistStamped Nachrichten
@@ -78,22 +90,28 @@ private:
 
     // Transformationen anwenden
     TransformValue params_lx = get_transform_params("linear_x");
-    out_msg.twist.linear.x = msg->twist.linear.x * params_lx.coeff + params_lx.offset;
+    double transformed_lx = msg->twist.linear.x * params_lx.coeff + params_lx.offset;
+    out_msg.twist.linear.x = clamp(transformed_lx, params_lx.min_val, params_lx.max_val);
 
     TransformValue params_ly = get_transform_params("linear_y");
-    out_msg.twist.linear.y = msg->twist.linear.y * params_ly.coeff + params_ly.offset;
+    double transformed_ly = msg->twist.linear.y * params_ly.coeff + params_ly.offset;
+    out_msg.twist.linear.y = clamp(transformed_ly, params_ly.min_val, params_ly.max_val);
 
     TransformValue params_lz = get_transform_params("linear_z");
-    out_msg.twist.linear.z = msg->twist.linear.z * params_lz.coeff + params_lz.offset;
+    double transformed_lz = msg->twist.linear.z * params_lz.coeff + params_lz.offset;
+    out_msg.twist.linear.z = clamp(transformed_lz, params_lz.min_val, params_lz.max_val);
 
     TransformValue params_ax = get_transform_params("angular_x");
-    out_msg.twist.angular.x = msg->twist.angular.x * params_ax.coeff + params_ax.offset;
+    double transformed_ax = msg->twist.angular.x * params_ax.coeff + params_ax.offset;
+    out_msg.twist.angular.x = clamp(transformed_ax, params_ax.min_val, params_ax.max_val);
 
     TransformValue params_ay = get_transform_params("angular_y");
-    out_msg.twist.angular.y = msg->twist.angular.y * params_ay.coeff + params_ay.offset;
+    double transformed_ay = msg->twist.angular.y * params_ay.coeff + params_ay.offset;
+    out_msg.twist.angular.y = clamp(transformed_ay, params_ay.min_val, params_ay.max_val);
 
     TransformValue params_az = get_transform_params("angular_z");
-    out_msg.twist.angular.z = msg->twist.angular.z * params_az.coeff + params_az.offset;
+    double transformed_az = msg->twist.angular.z * params_az.coeff + params_az.offset;
+    out_msg.twist.angular.z = clamp(transformed_az, params_az.min_val, params_az.max_val);
 
     publisher_->publish(out_msg);
     RCLCPP_DEBUG(this->get_logger(), "Transformierte TwistStamped Nachricht publiziert.");
