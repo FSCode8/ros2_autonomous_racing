@@ -39,9 +39,9 @@ import os
 
 
 def get_intrinsic_matrix():
-    alpha = 476.7014503479004
-    Cu = 400.0
-    Cv = 400.0
+    alpha = 587.02559142
+    Cu = 632.03759266
+    Cv = 512.96361401
     return np.array([[alpha, 0, Cu],
                      [0, alpha, Cv],
                      [0, 0, 1.0]])
@@ -54,13 +54,13 @@ class Test(Node):
         # NOTE: Add server for camera_info?
 
         # Vehicle constants
-        self.cam_height = 1.5
-        self.len_vehicle_front = 1.0
-        self.len_vehicle_shadow = 2.24
-        self.image_height = 800
-        self.image_width = 800
+        self.cam_height = 0.23
+        self.len_vehicle_front = 0.3
+        self.len_vehicle_shadow = 0.4 # ?
+        self.image_height = 960
+        self.image_width = 1280
 
-        self.image_topic_name = '/image_raw'
+        self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect' # '/image_raw'
 
         image_bag_flag = True
         full_setup_flag = True
@@ -134,7 +134,7 @@ class Test(Node):
             self.get_logger().info('Waiting for initial data from topic...')
 
         self.get_logger().info("Init finished")
-        self.action_client.wait_for_server()
+        #self.action_client.wait_for_server()
 
 
     def _initial_data_callback(self, msg):
@@ -213,22 +213,22 @@ class Test(Node):
         except CvBridgeError as e:
             self.get_logger().error(f'CvBridge Error: {e}')
         
-        # self.test(cv_image)
-        # self.image_viewer(cv_image)
-        self.image_saver(cv_image)
+        #self.test(cv_image)
+        self.image_viewer(cv_image)
+        # self.image_saver(cv_image)
         return
 
     def test(self, image):
         # --- 1) Crop and edge-detect as before ---
         h, w = image.shape[:2]
         cx, cy = w // 2, h // 2
-        x1, y1 = max(0, cx - 400), max(0, 445)
-        x2, y2 = min(w, cx + 400), min(h, 550)
+        x1, y1 = 0, h // 2 
+        x2, y2 = w, h 
         roi = image[y1:y2, x1:x2]
 
-        gray    = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 1.4)
-        edges   = cv2.Canny(blurred, 150, 250)
+        edges = cv2.Canny(blurred, 150, 250)
 
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -411,7 +411,7 @@ class Test(Node):
         goal_msg.path = path_msg
 
         self.get_logger().info("Sending path to FollowPath action server...")
-        self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
+        #self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
 
         pt1 = (int(x_left), int(y_target))
         pt2 = (int(x_right), int(y_target))
@@ -425,7 +425,13 @@ class Test(Node):
 
     def image_viewer(self, image):
         # Display the image in a window
+        
+        #h, w = image.shape[:2]
+
+        #cv2.circle(image, (w//2, h//2), 5, (0, 0, 255), -1)
+
         cv2.imshow("Image", image)
+
         cv2.waitKey(1)
 
     def image_saver(self, image):
@@ -601,7 +607,7 @@ class LaneGridPublisher(Node):
 
 if __name__ == '__main__':
 
-    single_image_flag = True
+    single_image_flag = False
     grid_flag = False
 
     rclpy.init()
