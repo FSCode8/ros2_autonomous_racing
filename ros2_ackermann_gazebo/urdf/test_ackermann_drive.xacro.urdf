@@ -43,7 +43,7 @@
   <joint name="camera_optical_joint" type="fixed">
     <!-- these values have to be these values otherwise the gazebo camera image
         won't be aligned properly with the frame it is supposedly originating from -->
-    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0"/>
+    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="-0.000029859 0.00012 0"/>
     <parent link="camera_link"/>
     <child link="camera_link_optical"/>
   </joint>
@@ -264,7 +264,7 @@
       <update_rate>30.0</update_rate>
       <topic>image_raw</topic>
       <camera name="head">
-        <horizontal_fov>1.3962634</horizontal_fov>
+        <horizontal_fov>1.657088793</horizontal_fov>
         <image>
           <width>1280</width>
           <height>960</height>
