@@ -27,7 +27,7 @@ install(TARGETS
 )
 
 add_executable(image_saver src/image_saver.cpp)
-ament_target_dependencies(image_saver rclcpp cv_bridge OpenCV sensor_msgs)
+ament_target_dependencies(image_saver rclcpp cv_bridge OpenCV sensor_msgs rosbag2_transport)
 
 install(TARGETS
   image_saver

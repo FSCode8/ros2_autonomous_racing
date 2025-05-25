@@ -61,16 +61,16 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.6 0.3 0.05" />
+        <box size="0.6 0.3 0.04" />
       </geometry>
     </collision>
 
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.6 0.3 0.05" />
+        <box size="0.6 0.3 0.02" />
       </geometry>
-      <material name="Red" />
+      <material name="Black" />
     </visual>
 
     <inertial>
@@ -81,8 +81,8 @@
 </link>
 
     <joint name="chassis_joint" type="fixed">
-    <origin xyz="-0.08 0 0.055" rpy="0 0 0" />
-    <!-- 0.03 (Bodenfreiheit) + 0.05/2 (Hälfte der Höhe) = 0.055 -->
+    <origin xyz="-0.08 0 0.05" rpy="0 0 0" />
+    <!-- 0.03 (Bodenfreiheit) + 0.04/2 (Hälfte der Höhe) = 0.05 -->
     <parent link="base_link" />
     <child link="chassis" />
 </joint>
@@ -108,7 +108,7 @@
   </link>
 
   <joint name="rear_left_wheel_joint" type="continuous">
-    <origin xyz="-0.18 0.1301 -0.005" rpy="-1.57 0 0" />
+    <origin xyz="-0.18 0.1301 -0.00" rpy="-1.57 0 0" />
     <parent link="chassis" />
     <child link="rear_left_wheel" />
     <axis xyz="0 0 1" />
@@ -135,7 +135,7 @@
   </link>
 
   <joint name="rear_right_wheel_joint" type="continuous">
-    <origin xyz="-0.18 -0.1301 -0.005" rpy="-1.57 0 0" />
+    <origin xyz="-0.18 -0.1301 -0.00" rpy="-1.57 0 0" />
     <parent link="chassis" />
     <child link="rear_right_wheel" />
     <axis xyz="0 0 1" />
@@ -151,7 +151,7 @@
   </link>
 
   <joint name="left_wheel_steering_joint" type="revolute">
-    <origin xyz="0.18 -0.1301 -0.005" rpy="1.57 0 0" />
+    <origin xyz="0.18 -0.1301 -0.00" rpy="1.57 0 0" />
     <parent link="chassis" />
     <child link="left_wheel_steering" />
     <axis xyz="0 1 0" />
@@ -168,7 +168,7 @@
   </link>
 
   <joint name="right_wheel_steering_joint" type="revolute">
-    <origin xyz="0.18 0.1301 -0.005" rpy="1.57 0 0" />
+    <origin xyz="0.18 0.1301 -0.00" rpy="1.57 0 0" />
     <parent link="chassis" />
     <child link="right_wheel_steering" />
     <axis xyz="0 1 0" />

@@ -9,7 +9,6 @@ import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
 from rclpy.action import ActionClient
-from nav2_msgs.action import FollowPath
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 from sensor_msgs.msg import Image
@@ -20,6 +19,7 @@ from nav_msgs.msg import OccupancyGrid
 from std_msgs.msg  import Header
 from geometry_msgs.msg import Pose
 from nav_msgs.msg import Path
+from nav2_msgs.action import FollowPath
 
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
@@ -63,7 +63,7 @@ class Test(Node):
         self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect' # '/image_raw'
 
         image_bag_flag = True
-        full_setup_flag = True
+        full_setup_flag = False
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -132,7 +132,6 @@ class Test(Node):
 
             # Wait for the initial data
             self.get_logger().info('Waiting for initial data from topic...')
-
         self.get_logger().info("Init finished")
         #self.action_client.wait_for_server()
 
@@ -212,10 +211,9 @@ class Test(Node):
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except CvBridgeError as e:
             self.get_logger().error(f'CvBridge Error: {e}')
-        
         #self.test(cv_image)
         self.image_viewer(cv_image)
-        # self.image_saver(cv_image)
+        #self.image_saver(cv_image)
         return
 
     def test(self, image):
@@ -429,10 +427,16 @@ class Test(Node):
         #h, w = image.shape[:2]
 
         #cv2.circle(image, (w//2, h//2), 5, (0, 0, 255), -1)
+        # show
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        cv2.imshow("Image", image)
+        # Threshold the image to create a binary image
+        _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
 
-        cv2.waitKey(1)
+        cv2.imshow("Image", binary)
+        cv2.imshow("Image Original", image)
+
+        cv2.waitKey(0)
 
     def image_saver(self, image):
 
@@ -495,119 +499,10 @@ class Test(Node):
         self.get_logger().info(f"FollowPath action finished with status: {status}")
 
 
-def start_occupancy_grid():
-    # meters per pixel in your desired occupancy grid
-    resolution = 0.05  
-
-    # bounds of your grid in world coords
-    x_min, x_max = -35.0, +35.0
-    y_min, y_max = -35.0, +35.0
-
-    # compute grid size
-    width  = int((x_max - x_min) / resolution)
-    height = int((y_max - y_min) / resolution)
-
-    grid = OccupancyGrid()
-    grid.header = Header(frame_id="map")
-    grid.info.resolution = resolution
-    grid.info.width  = width
-    grid.info.height = height
-
-    # origin of the grid in the world
-    grid.info.origin = Pose()
-    grid.info.origin.position.x = 3.0
-    grid.info.origin.position.y = 4.0
-    grid.info.origin.position.z = 0.0
-
-    # start with unknown
-    data = np.full((height, width), -1, dtype=np.int8)
-
-    grid.data = data.flatten().tolist()  # flatten the 2D array to 1D list
-
-    return grid
-
-
-class LaneGridPublisher(Node):
-    def __init__(self):
-        super().__init__('lane_grid_pub')
-
-        # Publisher for the occupancy grid
-        self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
-
-        # Action client for FollowPath
-        self.action_client = ActionClient(self, FollowPath, '/follow_path')
-        self.action_client.wait_for_server()
-        self.get_logger().info("FollowPath action server available!")
-
-        # Publish the occupancy grid once at startup
-        self.publish_grid()
-
-        # Send the path once at startup
-        self.send_path_goal()
-
-    def publish_grid(self):
-        # Example occupancy grid (replace with your logic as needed)
-        resolution = 0.05
-        x_min, x_max = -35.0, +35.0
-        y_min, y_max = -35.0, +35.0
-        width  = int((x_max - x_min) / resolution)
-        height = int((y_max - y_min) / resolution)
-
-        grid = OccupancyGrid()
-        grid.header = Header()
-        grid.header.frame_id = "odom"
-        grid.info.resolution = resolution
-        grid.info.width  = width
-        grid.info.height = height
-        grid.info.origin.position.x = 3.0
-        grid.info.origin.position.y = 4.0
-        grid.info.origin.position.z = 0.0
-
-        # Example: all unknown
-        data = np.full((height, width), -1, dtype=np.int8)
-        grid.data = data.flatten().tolist()
-
-        self.grid_pub.publish(grid)
-        self.get_logger().info("Published occupancy grid to /lane_grid")
-
-    def send_path_goal(self):
-        path_msg = Path()
-        path_msg.header.stamp = self.get_clock().now().to_msg()
-        path_msg.header.frame_id = "odom"
-
-        # Create a simple straight path
-        path_msg.poses = []
-        for i in range(20):
-            pose = PoseStamped()
-            pose.header.stamp = self.get_clock().now().to_msg()
-            pose.header.frame_id = "odom"
-            pose.pose.position.x = i * 0.2
-            pose.pose.position.y = 0.0
-            pose.pose.orientation.w = 1.0
-            path_msg.poses.append(pose)
-
-        goal_msg = FollowPath.Goal()
-        goal_msg.path = path_msg
-
-        self.get_logger().info("Sending path to FollowPath action server...")
-        self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
-
-    def goal_response_callback(self, future):
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().error('FollowPath goal rejected')
-            return
-        self.get_logger().info('FollowPath goal accepted')
-        goal_handle.get_result_async().add_done_callback(self.get_result_callback)
-
-    def get_result_callback(self, future):
-        result = future.result().result
-        status = future.result().status
-        self.get_logger().info(f"FollowPath action finished with status: {status}")
 
 if __name__ == '__main__':
 
-    single_image_flag = False
+    single_image_flag = True
     grid_flag = False
 
     rclpy.init()
@@ -622,13 +517,15 @@ if __name__ == '__main__':
         test_node = Test()
         test_node.get_logger().info("Test node has been started.")
         if single_image_flag:
-            image = cv2.imread('./src/manually_saved_images/saved_image_00001.png')  # Replace with your actual path
+            image = cv2.imread('./saved_images/image_1747926141_543872257.png')  # Replace with your actual path
 
             # Check if the image was loaded successfully
             if image is None:
                 print("Error: Could not read the image.")
             else:
-                test_node.test(image)
+                from image_controller.run_through_script import set_pose
+                set_pose("ackermann", 5.0, 0.0, 0.0)
+                #test_node.image_viewer(image)
         else:  
             rclpy.spin(test_node)
             test_node.destroy_node()

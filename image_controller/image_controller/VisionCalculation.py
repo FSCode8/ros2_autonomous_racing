@@ -41,7 +41,7 @@ class VisionCalculation:
         # compute vector nc
         self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -self.vehicle.cam_height])
 
-        self.grid_coordinates = self.precompute_grid()
+        self.grid_coordinates = self.precompute_grid(pitch_angle=0)
 
 
     def camframe_to_worldframe(self, vec_in_cam_frame):
@@ -57,8 +57,12 @@ class VisionCalculation:
         r_camframe = self.uv_to_XYZ_camframe(u,v)
         return self.camframe_to_worldframe(r_camframe)
 
-    def precompute_grid(self):
-        min_pixel = int(self.camera.image_height/2) + 1 # only if camera has no pitch angle
+    def precompute_grid(self, pitch_angle):
+        if pitch_angle == 0:
+            min_pixel = int(self.camera.image_height/2) + 1 
+        else:
+            return ValueError("Logic for pitch_angle unequal to zero has to be implemented in the future.")
+
         coordinates_grid = np.full((self.camera.image_height, self.camera.image_width, 2), -1, dtype=float)
         for v in range(min_pixel, self.camera.image_height):
             for u in range(self.camera.image_width):
