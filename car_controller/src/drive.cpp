@@ -37,7 +37,7 @@ public:
 
     // Subscriber für das Not-Aus Topic
     emergency_stop_subscriber_ = this->create_subscription<std_msgs::msg::Int32>(
-      "/not/aus", 10,
+      "/emergency/braking", 10,
       std::bind(&Drive::emergency_stop_callback, this, std::placeholders::_1));
 
     // Callback für Parameter-Änderungen
@@ -45,7 +45,7 @@ public:
         std::bind(&Drive::parameters_callback, this, std::placeholders::_1));
 
     RCLCPP_INFO(this->get_logger(), "Drive Node gestartet. Lauscht auf 'platzhalter/reference' und publiziert auf '/bicycle_steering_controller/reference'.");
-    RCLCPP_INFO(this->get_logger(), "Lauscht auf Not-Aus-Signal auf '/not/aus'.");
+    RCLCPP_INFO(this->get_logger(), "Lauscht auf Not-Aus-Signal auf '/emergency/braking'.");
     RCLCPP_INFO(this->get_logger(), "Output frame_id: %s", output_frame_id_.c_str());
   }
 
