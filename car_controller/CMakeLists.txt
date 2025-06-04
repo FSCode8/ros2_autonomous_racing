@@ -23,17 +23,6 @@ set(dependencies
 # Include directories
 include_directories(include)
 
-
-
-
-# Add the BicycleControlNode executable
-add_executable(bicycle_control_node src/bicycle_control_node.cpp)
-ament_target_dependencies(bicycle_control_node ${dependencies})
-
-# Add the AngleSimulationNode executable
-add_executable(angle_simulation_node src/angle_simulation_node.cpp)
-ament_target_dependencies(angle_simulation_node ${dependencies})
-
 # Add the Drive Node executable
 add_executable(drive src/drive.cpp)
 ament_target_dependencies(drive ${dependencies})
@@ -42,21 +31,12 @@ ament_target_dependencies(drive ${dependencies})
 add_executable(simulation_drive src/simulation_drive.cpp)
 ament_target_dependencies(simulation_drive ${dependencies})
 
-# add_executable(bicycle_control_node src/bicycle_control_node.cpp)
-add_executable(ttc_node src/ttc.cpp)
-ament_target_dependencies(ttc_node ${dependencies})
-
-# Add the AEBNode executable
-add_executable(aeb_node src/aeb.cpp)
-ament_target_dependencies(aeb_node ${dependencies})
-
-
+# Add the AEB executable
+add_executable(aeb src/aeb.cpp)
+ament_target_dependencies(aeb ${dependencies}) 
 
 install(TARGETS
-  ttc_node
-  aeb_node
-  bicycle_control_node
-  angle_simulation_node
+  aeb
   drive
   simulation_drive
   DESTINATION lib/${PROJECT_NAME}
