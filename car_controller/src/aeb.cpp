@@ -19,8 +19,9 @@ public:
 private:
   // Methoden-Deklarationen
   void calculate_ttc();
-  void distance_callback(const std_msgs::msg::Float32::SharedPtr msg); // Geändert zu SharedPtr
-  void velocity_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg); // Geändert zu SharedPtr
+  void distance_callback(const std_msgs::msg::Float32::SharedPtr msg);
+  void velocity_callback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
+  void emergency_callback(const std_msgs::msg::Int32::SharedPtr msg); // NEUE CALLBACK FÜR EMERGENCY RESET
   rcl_interfaces::msg::SetParametersResult parameters_callback(
     const std::vector<rclcpp::Parameter> &parameters);
 
@@ -34,6 +35,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr emergency_publisher;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr dist_subscription;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr vel_subscription;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr emergency_subscription; // NEUER SUBSCRIBER
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
 };
 
@@ -62,6 +64,11 @@ AEB_Node::AEB_Node()
   dist_subscription = this->create_subscription<std_msgs::msg::Float32>(
     "/collision_distance", 10, 
     std::bind(&AEB_Node::distance_callback, this, std::placeholders::_1));
+    
+  // Subscriber für Emergency-Braking-Topic, um externe Resets zu erkennen
+  emergency_subscription = this->create_subscription<std_msgs::msg::Int32>(
+    "/emergency/braking", 10, 
+    std::bind(&AEB_Node::emergency_callback, this, std::placeholders::_1));
   
   // Geschwindigkeits-Topic basierend auf controller_type bestimmen
   std::string velocity_topic;
@@ -167,6 +174,22 @@ void AEB_Node::velocity_callback(const geometry_msgs::msg::TwistStamped::SharedP
   }
   RCLCPP_INFO(this->get_logger(), "Calling calculate_ttc from velocity_callback. Current distance: %.2f", distance);
   calculate_ttc();
+}
+
+void AEB_Node::emergency_callback(const std_msgs::msg::Int32::SharedPtr msg)
+{
+  RCLCPP_INFO(this->get_logger(), "Emergency callback triggered. Received value: %d", msg->data);
+  
+  // Falls Wert 0 empfangen wird, Notbremsstatus zurücksetzen
+  if (msg->data == 0 && emergency_active) {
+    emergency_active = false;
+    RCLCPP_INFO(this->get_logger(), "Notbremsstatus zurückgesetzt durch externe Nachricht auf /emergency/braking");
+  }
+  // Falls Wert 1 empfangen wird und nicht von uns selbst kommt, Notbremsstatus aktivieren
+  else if (msg->data == 1 && !emergency_active) {
+    emergency_active = true;
+    RCLCPP_WARN(this->get_logger(), "Notbremsung durch externe Nachricht auf /emergency/braking aktiviert");
+  }
 }
 
 rcl_interfaces::msg::SetParametersResult AEB_Node::parameters_callback(
