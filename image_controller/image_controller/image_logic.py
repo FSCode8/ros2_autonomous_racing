@@ -63,7 +63,7 @@ class ImageTransformer(Node):
 
         self.image_topic_name = '/image_raw'
 
-        self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack 
+        self.Driving_Stack_Existing = True  # Flag if there is the full simulation with the nav2 stack 
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -180,6 +180,8 @@ class ImageTransformer(Node):
 
         # send path and occupancy grid out of image
         self.send_local_path(cv_image)
+        #cv2.imshow("Camera view", cv_image)
+        #cv2.waitKey(1)
 
     def compute_min_distance(self, image):
         # Convert the image to grayscale
@@ -236,8 +238,8 @@ class ImageTransformer(Node):
 
             if y_max_point[0] < target[0]:
                 left_dist = np.linalg.norm(y_max_point - target)
-
                 if left_dist < left_min:
+                    
                     left_min = left_dist
                     left_point = y_max_point
                     left_cnt = cnt
@@ -276,14 +278,20 @@ class ImageTransformer(Node):
         path_msg.header.stamp = self.get_clock().now().to_msg()
         path_msg.header.frame_id = "odom"
 
+        contours_img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+        if left_cnt is not None:
+            cv2.drawContours(contours_img, [left_cnt], -1, (0,255,0), thickness=2)
+        if right_cnt is not None:
+            cv2.drawContours(contours_img, [right_cnt], -1, (0,0,255), thickness=2)
+
         # Create the path
         path_msg.poses = []
-        for i in range(6):
+        for i in range(7):
             pose = PoseStamped()
             pose.header.stamp = self.get_clock().now().to_msg()
             pose.header.frame_id = "odom"
 
-            pixel_y = h_e-1 - i * 20  
+            pixel_y = h_e - (i+1) * 60  
 
             # TODO: Add Logic for the case that left/right boundary goes until right/left side of the image -> point should be outside of the image
             # NOTE: Rotation is not considered yet 
@@ -304,11 +312,24 @@ class ImageTransformer(Node):
 
                 pixel_x = int((x_left + x_right) / 2.0)
 
+            cv2.circle(contours_img, (pixel_x, pixel_y), 5, (0, 255, 0), -1)
+
             pose.pose.position.x = current_position[0] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][0]  # x coordinate in world frame
             pose.pose.position.y = current_position[1] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][1]  # y coordinate in world frame 
             pose.pose.position.z = current_position[2]  # z coordinate in world frame
-            pose.pose.orientation.w = 1.0  # No rotation
+            
+            if i> 0:
+                dx = pose.pose.position.x - path_msg.poses[i-1].pose.position.x
+                dy = pose.pose.position.y - path_msg.poses[i-1].pose.position.y
+                yaw = math.atan2(dy, dx)  # Calculate yaw angle
+            else:
+                yaw = 0.0  # First point, no previous point to calculate yaw
+            
+            pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)
+        
+        cv2.imshow("Contours", contours_img)
+        cv2.waitKey(1)
 
         # Publisher for the occupancy grid
         self.publish_grid()

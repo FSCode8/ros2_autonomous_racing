@@ -263,7 +263,7 @@ class Test(Node):
                     right_point = y_max_point
                     right_cnt = cnt
 
-        show_debug = False
+        show_debug = True
         if show_debug:
             # --- 3.5) Draw the target point ---
             cv2.circle(roi, tuple(target), 5, (255, 0, 0), -1)
@@ -523,9 +523,9 @@ if __name__ == '__main__':
             if image is None:
                 print("Error: Could not read the image.")
             else:
-                from image_controller.run_through_script import set_pose
-                set_pose("ackermann", 5.0, 0.0, 0.0)
-                #test_node.image_viewer(image)
+                #from image_controller.run_through_script import set_pose
+                #set_pose("ackermann", 5.0, 0.0, 0.0)
+                test_node.test(image)
         else:  
             rclpy.spin(test_node)
             test_node.destroy_node()
