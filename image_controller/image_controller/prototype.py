@@ -62,10 +62,14 @@ class Test(Node):
         self.image_height = 960
         self.image_width = 1280
 
-        self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect' # '/image_raw'
+        self.image_topic_name = '/image_raw'#'/my_camera/pylon_ros2_camera_node/image_rect' # '/image_raw'
 
+        self.toggle_image_processing = True  # Toggle image processing on/off
+        
+        self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack
+        
         image_bag_flag = True
-        full_setup_flag = False
+        full_setup_flag = True
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -214,8 +218,8 @@ class Test(Node):
         except CvBridgeError as e:
             self.get_logger().error(f'CvBridge Error: {e}')
         #self.test(cv_image)
-        self.image_viewer(cv_image)
-        #self.image_saver(cv_image)
+        #self.image_viewer(cv_image)
+        self.image_saver(cv_image)
         return
 
     def detect_lanes(self, image):
@@ -226,17 +230,21 @@ class Test(Node):
         x2, y2 = w, h 
         roi = image[y1:y2, x1:x2]
 
+        h_e, w_e, _ = roi.shape
+
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 1.4)
-        edges = cv2.Canny(blurred, 150, 250)
+        edges = cv2.Canny(blurred, 150, 200)
+
+        cv2.rectangle(edges, ((w_e//2)-(w_e//4), h_e-20), ((w_e//2)+(w_e//4), h_e-1), (0,0,0), -1)
 
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
         # --- 2) Define bottom-center and initialize trackers ---
         h_e, w_e = edges.shape
         target = np.array([w_e // 2, h_e - 1])
-
-        print("Target:", target)
+        target_l = np.array([target[0]-((target[0]//4)*3), target[1]-50])
+        target_r = np.array([target[0]+((target[0]//4)*3), target[1]-50])
 
         left_min = float('inf')
         right_min = float('inf')
@@ -249,26 +257,31 @@ class Test(Node):
             idx = np.argmax(cnt[:, 0, 1])
             y_max_point = cnt[idx, 0, :]
             y_max_point_array.append(y_max_point)
-            print("Y max:", y_max_point)
 
-            if y_max_point[0] < target[0]:
-                left_dist = np.linalg.norm(y_max_point - target)
-                print("Left dist:", left_dist)
-                if left_dist < left_min:
-                    left_min = left_dist
-                    left_point = y_max_point
-                    left_cnt = cnt
-            else:
-                right_dist = np.linalg.norm(y_max_point - target)
-                if right_dist < right_min:
-                    right_min = right_dist
-                    right_point = y_max_point
-                    right_cnt = cnt
+            if len(cnt)>100 and y_max_point[1]>target[1]//2: # filter out small or wrongcontours
+                if y_max_point[0] < target[0]:
+                    left_dist = np.linalg.norm(target_l-y_max_point)
+                    if left_dist < left_min:
+                        left_min = left_dist
+                        left_point = y_max_point
+                        left_cnt = cnt
+                else:
+                    right_dist = np.linalg.norm(target_r-y_max_point)
+                    if right_dist < right_min:
+                        right_min = right_dist
+                        right_point = y_max_point
+                        right_cnt = cnt
 
+        #print("len cnt l:", len(left_cnt))
+        #print("len cnt r:", len(right_cnt))
         show_debug = True
         if show_debug:
             # --- 3.5) Draw the target point ---
             cv2.circle(roi, tuple(target), 5, (255, 0, 0), -1)
+            cv2.circle(roi, tuple(target_l), 5, (255, 0, 0), -1)
+            cv2.circle(roi, tuple(target_r), 5, (255, 0, 0), -1)
+
+            cv2.circle(roi, (target[0], target[1]//2), 5, (0, 0, 255), -1)
             cv2.imshow("Target", roi)
             cv2.waitKey(0)
             # --- 3.5) Draw the closest points ---
@@ -332,19 +345,19 @@ class Test(Node):
             curve_img = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
             if left_point is None and right_point is None:
                 print("Couldn't find both a left and right contour.")
-                x_left = -1#0
-                x_right = -1#w_e-1
+                x_left = -1
+                x_right = -1
             else:
                 if left_point is None: 
                     print("Couldn't find a left contour.")
-                    x_left = -1#0
+                    x_left = -1
                 else:
                     xl, yl = left_cnt[:, 0, 0], left_cnt[:, 0, 1]
                     for xi, yi in zip(xl.astype(int), yl.astype(int)):
                         if 0 <= xi < w_e and 0 <= yi < h_e:
                             curve_img[yi, xi] = (0, 255, 0)
 
-                    idx_left = np.argmin(np.abs(yl - y_target))     # Find closest index in yl and yr to y_target
+                    idx_left = np.argmin(np.abs(yl - target[1]))     # Find closest index in yl and yr to y_target
                     x_left = xl[idx_left]   # Get corresponding x positions
 
                 if right_point is None:
@@ -356,7 +369,7 @@ class Test(Node):
                         if 0 <= xi < w_e and 0 <= yi < h_e:
                             curve_img[yi, xi] = (0, 255, 0)
 
-                    idx_right = np.argmin(np.abs(yr - y_target))    # Find closest index in yl and yr to y_target
+                    idx_right = np.argmin(np.abs(yr - target[1]))    # Find closest index in yl and yr to y_target
                     x_right = xr[idx_right]     # Get corresponding x positions
 
         # Create points
@@ -368,12 +381,12 @@ class Test(Node):
 
         # Create a simple curved path
         path_msg.poses = []
-        for i in range(6):
+        for i in range(7):
             pose = PoseStamped()
-            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.stamp = path_msg.header.stamp
             pose.header.frame_id = "odom"
 
-            pixel_y = h_e - (i+1) * 30  
+            pixel_y = h_e - (i+1) * 60  
 
             # TODO: Add Logic for the case that left/right boundary goes until right/left side of the image -> point should be outside of the image
             # NOTE: Rotation is not considered yet 
@@ -399,10 +412,23 @@ class Test(Node):
             pose.pose.position.x = current_position[0] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][0]  # x coordinate in world frame
             pose.pose.position.y = current_position[1] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][1]  # y coordinate in world frame 
             pose.pose.position.z = current_position[2]  # z coordinate in world frame
-            pose.pose.orientation.w = 1.0  # No rotation
+            
+            if i> 0:
+                dx = pose.pose.position.x - path_msg.poses[i-1].pose.position.x
+                dy = pose.pose.position.y - path_msg.poses[i-1].pose.position.y
+                  
+            else:
+                dx = pose.pose.position.x - current_position[0]
+                dy = pose.pose.position.y - current_position[1]
+            
+            # Calculate yaw angle
+            yaw = math.atan2(dy, dx)
+
+            pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)
 
-            print(pose.pose.position.x, pose.pose.position.y)
+        cv2.imshow("Contours", curve_img)
+        cv2.waitKey(0)
 
         # Publisher for the occupancy grid
         self.publish_grid()
@@ -410,18 +436,11 @@ class Test(Node):
         goal_msg = FollowPath.Goal()
         goal_msg.path = path_msg
 
-        self.get_logger().info("Sending path to FollowPath action server...")
-        #self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
-
-        pt1 = (int(x_left), int(y_target))
-        pt2 = (int(x_right), int(y_target))
-
-        # Draw the horizontal line in red
-        #cv2.line(curve_img, pt1, pt2, color=(0, 0, 255), thickness=2)
-        
-        cv2.imshow("Curves", curve_img)
-        cv2.waitKey(0)
-        return
+        if self.Driving_Stack_Existing:
+            self.get_logger().info("Sending path to FollowPath action server.")
+            self.action_client.send_goal_async(goal_msg).add_done_callback(self.goal_response_callback)
+        else:
+            self.get_logger().info("Path would be send to FollowPath action server.")
 
     def image_viewer(self, image):
         # Display the image in a window
@@ -430,15 +449,14 @@ class Test(Node):
 
         #cv2.circle(image, (w//2, h//2), 5, (0, 0, 255), -1)
         # show
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        # Threshold the image to create a binary image
-        _, binary = cv2.threshold(gray, 125, 255, cv2.THRESH_BINARY)
+        h_e, w_e, _ = image.shape
+        ("distances:", h_e, w_e)
+        cv2.rectangle(image, ((w_e//2)-(w_e//4), h_e-20), ((w_e//2)+(w_e//4), h_e-1), (0,0,0), -1)
 
         #cv2.imshow("Image", binary)
         cv2.imshow("Image Original", image)
 
-        cv2.waitKey(1)
+        cv2.waitKey(0)
 
     def image_saver(self, image):
 
@@ -590,7 +608,7 @@ class Test(Node):
 
 if __name__ == '__main__':
 
-    single_image_flag = False
+    single_image_flag = True
     grid_flag = False
 
     rclpy.init()
@@ -606,16 +624,17 @@ if __name__ == '__main__':
         test_node.get_logger().info("Test node has been started.")
         if single_image_flag:
             #image = cv2.imread('./saved_images/image_1747926141_543872257.png')  
-            image = cv2.imread('./saved_images/image_1747926103_906651227.png')  
-            #image = cv2.imread('./saved_images/image_1747926146_165597260.png') 
-
+            #image = cv2.imread('./saved_images/image_1747926103_906651227.png')  
+            
+            image = cv2.imread('./saved_clean_track_images/image_1749133787_843306938.png') 
+            #image = cv2.imread('./manually_saved_images/saved_image_00012.png')
             # Check if the image was loaded successfully
             if image is None:
                 print("Error: Could not read the image.")
             else:
                 #from image_controller.run_through_script import set_pose
                 #set_pose("ackermann", 5.0, 0.0, 0.0)
-                test_node.test(image)
+                test_node.detect_lanes(image)
         else:  
             rclpy.spin(test_node)
             test_node.destroy_node()

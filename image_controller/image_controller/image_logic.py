@@ -227,10 +227,15 @@ class ImageTransformer(Node):
         x2, y2 = w, h 
         roi = image[y1:y2, x1:x2]
 
+        h_e, w_e, _ = roi.shape
+
         # convert image, apply the Canny Edge Detection and find the contours to get the lane markings
         gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 1.4)
-        edges = cv2.Canny(blurred, 150, 250)
+        edges = cv2.Canny(blurred, 150, 200)
+
+        # paint over car part
+        cv2.rectangle(edges, ((w_e//2)-(w_e//4), h_e-20), ((w_e//2)+(w_e//4), h_e-1), (0,0,0), -1)
 
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -238,6 +243,8 @@ class ImageTransformer(Node):
         # They are most likely to be the lane markings of interest
         h_e, w_e = edges.shape
         target = np.array([w_e // 2, h_e - 1])
+        target_l = np.array([target[0]-((target[0]//4)*3), target[1]-50])
+        target_r = np.array([target[0]+((target[0]//4)*3), target[1]-50])
 
         left_min = float('inf')
         right_min = float('inf')
@@ -250,19 +257,19 @@ class ImageTransformer(Node):
             y_max_point = cnt[idx, 0, :]
             y_max_point_array.append(y_max_point)
 
-            if y_max_point[0] < target[0]:
-                left_dist = np.linalg.norm(y_max_point - target)
-                if left_dist < left_min:
-                    
-                    left_min = left_dist
-                    left_point = y_max_point
-                    left_cnt = cnt
-            else:
-                right_dist = np.linalg.norm(y_max_point - target)
-                if right_dist < right_min:
-                    right_min = right_dist
-                    right_point = y_max_point
-                    right_cnt = cnt
+            if len(cnt)>100 and y_max_point[1]>target[1]//2: # filter out small or wrongcontours
+                if y_max_point[0] < target[0]:
+                    left_dist = np.linalg.norm(target_l-y_max_point)
+                    if left_dist < left_min:
+                        left_min = left_dist
+                        left_point = y_max_point
+                        left_cnt = cnt
+                else:
+                    right_dist = np.linalg.norm(target_r-y_max_point)
+                    if right_dist < right_min:
+                        right_min = right_dist
+                        right_point = y_max_point
+                        right_cnt = cnt
 
         # setup the arrays with the x values of the left and right lane
         if left_point is None and right_point is None:
@@ -334,10 +341,14 @@ class ImageTransformer(Node):
             if i> 0:
                 dx = pose.pose.position.x - path_msg.poses[i-1].pose.position.x
                 dy = pose.pose.position.y - path_msg.poses[i-1].pose.position.y
-                yaw = math.atan2(dy, dx)  # Calculate yaw angle
+                  
             else:
-                yaw = 0.0  # First point, no previous point to calculate yaw
+                dx = pose.pose.position.x - current_position[0]
+                dy = pose.pose.position.y - current_position[1]
             
+            # Calculate yaw angle
+            yaw = math.atan2(dy, dx)
+
             pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)
         
