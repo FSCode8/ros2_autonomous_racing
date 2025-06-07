@@ -35,7 +35,7 @@ class CameraGeometry(object):
         self.trafo_perspective_cam[0:3, 3] = np.array([0, 0, self.height]) # translation vector
 
         # Create extrinsic matrix for the perspective of the camera
-        self.rotation_perspective_bird = self.create_rotation_matrix(roll_deg=0, pitch_deg=0, yaw_deg=0)
+        self.rotation_perspective_bird = self.create_rotation_matrix(roll_deg=-90, pitch_deg=-90, yaw_deg=-90)
         self.trafo_perspective_bird = np.eye(4)
         self.trafo_perspective_bird[0:3,0:3] = self.rotation_perspective_bird
         self.trafo_perspective_bird[0:3, 3] = np.array([0, 0, self.height]) # translation vector
@@ -79,11 +79,7 @@ class CameraGeometry(object):
         
         # Combine rotations
 
-        return np.array([[0, 0, 1],
-                        [-1, 0, 0],
-                        [0, -1, 0]]) 
-        """
-        return R_yaw @ R_pitch @ R_roll"""
+        return R_yaw @ R_pitch @ R_roll
 
     def create_perspective_homography(self, K1, K2, R_t1, R_t2):
         """

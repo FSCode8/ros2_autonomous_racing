@@ -37,6 +37,8 @@ from geometry_msgs.msg import Vector3
 import math
 import os
 
+import scipy
+
 
 def get_intrinsic_matrix():
     alpha = 587.02559142
@@ -93,7 +95,7 @@ class Test(Node):
         if image_bag_flag:
 
             if full_setup_flag:
-                camera_obj = Camera(K_matrix=get_intrinsic_matrix())
+                camera_obj = Camera(K_matrix=get_intrinsic_matrix(), image_height=self.image_height, image_width=self.image_width)
                 vehicle_obj = VehicleGeometry(cam_height=self.cam_height , len_vehicle_shadow=self.len_vehicle_shadow, len_vehicle_front=self.len_vehicle_front)
             
                 rotation_matrix = np.array([[0, 0, 1],
@@ -216,7 +218,7 @@ class Test(Node):
         #self.image_saver(cv_image)
         return
 
-    def test(self, image):
+    def detect_lanes(self, image):
         # --- 1) Crop and edge-detect as before ---
         h, w = image.shape[:2]
         cx, cy = w // 2, h // 2
@@ -263,7 +265,7 @@ class Test(Node):
                     right_point = y_max_point
                     right_cnt = cnt
 
-        show_debug = False
+        show_debug = True
         if show_debug:
             # --- 3.5) Draw the target point ---
             cv2.circle(roi, tuple(target), 5, (255, 0, 0), -1)
@@ -371,7 +373,7 @@ class Test(Node):
             pose.header.stamp = self.get_clock().now().to_msg()
             pose.header.frame_id = "odom"
 
-            pixel_y = 100 - i * 15  
+            pixel_y = h_e - (i+1) * 30  
 
             # TODO: Add Logic for the case that left/right boundary goes until right/left side of the image -> point should be outside of the image
             # NOTE: Rotation is not considered yet 
@@ -431,12 +433,12 @@ class Test(Node):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # Threshold the image to create a binary image
-        _, binary = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+        _, binary = cv2.threshold(gray, 125, 255, cv2.THRESH_BINARY)
 
-        cv2.imshow("Image", binary)
+        #cv2.imshow("Image", binary)
         cv2.imshow("Image Original", image)
 
-        cv2.waitKey(0)
+        cv2.waitKey(1)
 
     def image_saver(self, image):
 
@@ -498,11 +500,97 @@ class Test(Node):
         status = future.result().status
         self.get_logger().info(f"FollowPath action finished with status: {status}")
 
+    def warp_image(self, image):
+        bev_img_size_px = (1280, 960)
 
+        self.vision_calc.camera.K_matrix
+
+        print(self.vision_calc.translation_cam_to_world)
+
+        """
+        H_bev = self.get_bev_homography(
+            K_orig=self.vision_calc.cam_intrinsic_matrix,
+            R_cw=self.vision_calc.rotation_cam_to_world,
+            t_cam_in_world=self.vision_calc.translation_cam_to_world,
+            world_roi_x_m=(-1, 1),
+            world_roi_y_m=(0, 2),
+            bev_img_size_px=(1280, 960),
+            ground_plane_world_z=0.0,
+            invert_bev_y_axis=True
+            )
+        """
+
+        bev_image = cv2.warpPerspective(image, self.vision_calc.bev_homography, bev_img_size_px)
+
+        cv2.imshow("Original Image", image)
+        cv2.imshow("Bird's-Eye View Image", bev_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        pass
+
+    
+    def test(self, image):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 1.4)
+        edges = cv2.Canny(blurred, 100, 170) # Adjust thresholds
+
+        height, width = image.shape[:2]
+        roi_vertices = np.array([[(width / 2, height-20), (0, height), (0, height/(5)*4), (width / 2, height / 2 + 50), (width, height/(5)*4), (width, height)]], dtype=np.int32) # Adjust
+        mask = np.zeros_like(edges) # or edges
+        cv2.fillPoly(mask, roi_vertices, 255)
+        masked_lanes = cv2.bitwise_and(edges, mask)
+
+        #new_warp = cv2.warpPerspective(image, self.vision_calc.bev_homography, (image.shape[1], image.shape[0]))
+
+        from camera_software import CameraGeometry 
+        camera_geometry = CameraGeometry(height=self.cam_height, K_matrix=get_intrinsic_matrix())
+
+       # https://docs.opencv.org/4.x/d9/dab/tutorial_homography.html
+
+        R0c1 = camera_geometry.rotation_perspective_cam
+        R0c2 = camera_geometry.rotation_perspective_bird
+
+        R1 = R0c2 @ R0c1.T
+
+        t1 = np.array([0, 0, 0]) # translation vector between camera and bird perspective
+
+        n = np.array([0, 0, -1])
+
+        d = self.cam_height
+
+        H1 = R1 - (t1 * n.T / d)
+
+        G = camera_geometry.intrinsic_matrix @ H1 @ np.linalg.inv(camera_geometry.intrinsic_matrix)
+
+        img1_warp = cv2.warpPerspective(image, G, (image.shape[1], image.shape[0]))
+
+        print("Camera Geometry:", camera_geometry.rotation_cam_to_world)
+        print("Bird rotation", camera_geometry.rotation_perspective_bird)
+        cv2.imshow("Original Image", image)
+        cv2.waitKey(0)
+        cv2.imshow("edges", img1_warp)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        return
+        cv2.imshow("Original Image", image)
+        cv2.waitKey(0)
+        cv2.imshow("edges", edges)
+        cv2.waitKey(0)
+        cv2.imshow("warp", new_warp)
+        cv2.waitKey(0)
+        cv2.imshow("Masked Lanes", masked_lanes)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+"""np.array([[0, 0, 1],
+            [-1, 0, 0],
+            [0, -1, 0]])"""
 
 if __name__ == '__main__':
 
-    single_image_flag = True
+    single_image_flag = False
     grid_flag = False
 
     rclpy.init()
@@ -517,15 +605,17 @@ if __name__ == '__main__':
         test_node = Test()
         test_node.get_logger().info("Test node has been started.")
         if single_image_flag:
-            image = cv2.imread('./saved_images/image_1747926141_543872257.png')  # Replace with your actual path
+            #image = cv2.imread('./saved_images/image_1747926141_543872257.png')  
+            image = cv2.imread('./saved_images/image_1747926103_906651227.png')  
+            #image = cv2.imread('./saved_images/image_1747926146_165597260.png') 
 
             # Check if the image was loaded successfully
             if image is None:
                 print("Error: Could not read the image.")
             else:
-                from image_controller.run_through_script import set_pose
-                set_pose("ackermann", 5.0, 0.0, 0.0)
-                #test_node.image_viewer(image)
+                #from image_controller.run_through_script import set_pose
+                #set_pose("ackermann", 5.0, 0.0, 0.0)
+                test_node.test(image)
         else:  
             rclpy.spin(test_node)
             test_node.destroy_node()
