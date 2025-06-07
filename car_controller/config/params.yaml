@@ -36,6 +36,6 @@ drive:
 
 aeb:
   ros__parameters:
-    ttc_threshold: 30.0
+    ttc_threshold: 5.0
     aeb_aktiv: 1
     controller_type: "ackermann"
