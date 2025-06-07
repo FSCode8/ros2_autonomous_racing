@@ -73,11 +73,11 @@ class VisionCalculation:
         else:
             return ValueError("Logic for pitch_angle unequal to zero has to be implemented in the future.")
 
-        coordinates_grid = np.full((self.camera.image_height, self.camera.image_width, 2), -1, dtype=float)
+        coordinates_grid = np.full((self.camera.image_width, self.camera.image_height, 2), -1, dtype=float)
         for v in range(min_pixel, self.camera.image_height):
             for u in range(self.camera.image_width):
                 X,Y,Z= self.uv_to_XYZ_worldframe(u,v)
-                coordinates_grid[v, u] = np.array([X,Y])
+                coordinates_grid[u, v] = np.array([X,Y])
         return coordinates_grid
 
     def compute_dist(self, u, v, alpha=0):
