@@ -40,15 +40,6 @@ import math
 import time
 
 
-def get_intrinsic_matrix():
-    alpha = 476.7014503479004
-    Cu = 400.0
-    Cv = 400.0
-    return np.array([[alpha, 0, Cu],
-                     [0, alpha, Cv],
-                     [0, 0, 1.0]])
-
-
 class ImageTransformer(Node):
 
     def __init__(self):
@@ -62,6 +53,7 @@ class ImageTransformer(Node):
         self.image_width = 1280
 
         self.image_topic_name = '/image_raw'
+        self.toggle_image_processing = True  # Toggle image processing on/off 
 
         self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack 
 
@@ -76,7 +68,27 @@ class ImageTransformer(Node):
             '/collision_distance',
             10) 
         
-        # publisher for occupancy grid
+        # Create occupancy grid
+        resolution = 0.01
+        x_min, x_max = -15.0, +15.0
+        y_min, y_max = -15.0, +15.0
+        width  = int((x_max - x_min) / resolution)
+        height = int((y_max - y_min) / resolution)
+
+        self.grid = OccupancyGrid()
+        self.grid.header = Header()
+        self.grid.header.frame_id = "odom"
+        self.grid.info.resolution = resolution
+        self.grid.info.width  = width
+        self.grid.info.height = height
+        self.grid.info.origin.position.x = 0.0
+        self.grid.info.origin.position.y = 0.0
+        self.grid.info.origin.position.z = 0.0
+
+        data = np.zeros((height, width), dtype=np.int8)  # All free space
+        self.grid.data = data.flatten().tolist()
+
+        # Occupancy grid publisher
         self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
 
         # Action client for FollowPath
@@ -179,7 +191,11 @@ class ImageTransformer(Node):
             self.publisher_.publish(msg)
 
         # send path and occupancy grid out of image
-        self.send_local_path(cv_image)
+        if self.toggle_image_processing:
+            self.send_local_path(cv_image)
+            self.toggle_image_processing = False
+        else:
+            self.toggle_image_processing = True
 
     def compute_min_distance(self, image):
         # Convert the image to grayscale
@@ -280,12 +296,11 @@ class ImageTransformer(Node):
         path_msg.poses = []
         for i in range(6):
             pose = PoseStamped()
-            pose.header.stamp = self.get_clock().now().to_msg()
+            pose.header.stamp = path_msg.header.stamp
             pose.header.frame_id = "odom"
 
-            pixel_y = h_e-1 - i * 20  
+            pixel_y = h_e - (i-1) * 20  
 
-            # TODO: Add Logic for the case that left/right boundary goes until right/left side of the image -> point should be outside of the image
             # NOTE: Rotation is not considered yet 
 
             if x_left == -1 and x_right == -1:
@@ -324,7 +339,7 @@ class ImageTransformer(Node):
         
 
     def publish_grid(self):
-        # Example occupancy grid 
+        
         resolution = 0.01
         x_min, x_max = -15.0, +15.0
         y_min, y_max = -15.0, +15.0
@@ -342,7 +357,8 @@ class ImageTransformer(Node):
         grid.info.origin.position.z = 0.0
 
         # Example: all unknown
-        data = np.full((height, width), -1, dtype=np.int8)
+        #data = np.full((height, width), -1, dtype=np.int8)
+        data = np.zeros((height, width), dtype=np.int8)  # All free space
         grid.data = data.flatten().tolist()
 
         self.grid_pub.publish(grid)
