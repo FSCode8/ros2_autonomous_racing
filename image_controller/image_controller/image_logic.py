@@ -55,7 +55,7 @@ class ImageTransformer(Node):
         self.image_topic_name = '/image_raw'
         self.toggle_image_processing = True  # Toggle image processing on/off 
 
-        self.Driving_Stack_Existing = True  # Flag if there is the full simulation with the nav2 stack 
+        self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack 
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -78,6 +78,7 @@ class ImageTransformer(Node):
         self.grid = OccupancyGrid()
         self.grid.header = Header()
         self.grid.header.frame_id = "odom"
+        self.grid.info.map_load_time = self.get_clock().now().to_msg()
         self.grid.info.resolution = resolution
         self.grid.info.width  = width
         self.grid.info.height = height
@@ -85,8 +86,8 @@ class ImageTransformer(Node):
         self.grid.info.origin.position.y = 0.0
         self.grid.info.origin.position.z = 0.0
 
-        data = np.zeros((height, width), dtype=np.int8)  # All free space
-        self.grid.data = data.flatten().tolist()
+        data = np.full((height, width), -1, dtype=np.int8) # All unknown
+        self.grid.data = data.ravel().tolist()
 
         # Occupancy grid publisher
         self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
@@ -352,8 +353,8 @@ class ImageTransformer(Node):
             pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)
         
-        cv2.imshow("Contours", contours_img)
-        cv2.waitKey(1)
+        #cv2.imshow("Contours", contours_img)
+        #cv2.waitKey(1)
 
         # Publisher for the occupancy grid
         self.publish_grid()
@@ -368,30 +369,14 @@ class ImageTransformer(Node):
             self.get_logger().info("Path would be send to FollowPath action server.")
         
 
-    def publish_grid(self):
+    def publish_grid(self, update_information=None):
         
-        resolution = 0.01
-        x_min, x_max = -15.0, +15.0
-        y_min, y_max = -15.0, +15.0
-        width  = int((x_max - x_min) / resolution)
-        height = int((y_max - y_min) / resolution)
-
-        grid = OccupancyGrid()
-        grid.header = Header()
-        grid.header.frame_id = "odom"
-        grid.info.resolution = resolution
-        grid.info.width  = width
-        grid.info.height = height
-        grid.info.origin.position.x = 0.0
-        grid.info.origin.position.y = 0.0
-        grid.info.origin.position.z = 0.0
-
-        # Example: all unknown
-        #data = np.full((height, width), -1, dtype=np.int8)
-        data = np.zeros((height, width), dtype=np.int8)  # All free space
-        grid.data = data.flatten().tolist()
-
-        self.grid_pub.publish(grid)
+        if update_information is None:
+            self.grid.header.stamp = self.get_clock().now().to_msg()
+            self.grid_pub.publish(self.grid)
+        else:
+            raise NotImplementedError("Grid update functionality not yet implemented")
+        
         self.get_logger().info("Published occupancy grid to /lane_grid")
 
     def goal_response_callback(self, future):

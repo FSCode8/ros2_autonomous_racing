@@ -82,14 +82,29 @@ class Test(Node):
             '/collision_distance',
             10) 
         
-        # publisher for next waypoint
-        self.publisher_next_waypoint_ = self.create_publisher(
-            Vector3,
-            '/next_waypoint',
-            10)
+        # Create occupancy grid
+        resolution = 0.01
+        x_min, x_max = -15.0, +15.0
+        y_min, y_max = -15.0, +15.0
+        width  = int((x_max - x_min) / resolution)
+        height = int((y_max - y_min) / resolution)
+
+        self.grid = OccupancyGrid()
+        self.grid.header = Header()
+        self.grid.header.frame_id = "odom"
+        self.grid.info.map_load_time = self.get_clock().now().to_msg()
+        self.grid.info.resolution = resolution
+        self.grid.info.width  = width
+        self.grid.info.height = height
+        self.grid.info.origin.position.x = 0.0
+        self.grid.info.origin.position.y = 0.0
+        self.grid.info.origin.position.z = 0.0
+
+        data = np.full((height, width), -1, dtype=np.int8) # All unknown
+        self.grid.data = data.ravel().tolist()
 
         # Publisher for the occupancy grid
-        self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)
+        self.grid_pub = self.create_publisher(OccupancyGrid, '/lane_grid', 10)        
 
         # Action client for FollowPath
         self.action_client = ActionClient(self, FollowPath, '/follow_path')
@@ -223,6 +238,7 @@ class Test(Node):
         return
 
     def detect_lanes(self, image):
+        print("Detecting lanes...")
         # --- 1) Crop and edge-detect as before ---
         h, w = image.shape[:2]
         cx, cy = w // 2, h // 2
@@ -274,7 +290,7 @@ class Test(Node):
 
         #print("len cnt l:", len(left_cnt))
         #print("len cnt r:", len(right_cnt))
-        show_debug = True
+        show_debug = False
         if show_debug:
             # --- 3.5) Draw the target point ---
             cv2.circle(roi, tuple(target), 5, (255, 0, 0), -1)
@@ -353,9 +369,9 @@ class Test(Node):
                     x_left = -1
                 else:
                     xl, yl = left_cnt[:, 0, 0], left_cnt[:, 0, 1]
-                    for xi, yi in zip(xl.astype(int), yl.astype(int)):
-                        if 0 <= xi < w_e and 0 <= yi < h_e:
-                            curve_img[yi, xi] = (0, 255, 0)
+                    #for xi, yi in zip(xl.astype(int), yl.astype(int)):
+                    #    if 0 <= xi < w_e and 0 <= yi < h_e:
+                    #        curve_img[yi, xi] = (0, 255, 0)
 
                     idx_left = np.argmin(np.abs(yl - target[1]))     # Find closest index in yl and yr to y_target
                     x_left = xl[idx_left]   # Get corresponding x positions
@@ -365,9 +381,9 @@ class Test(Node):
                     x_right = -1#w_e-1
                 else: 
                     xr, yr = right_cnt[:, 0, 0], right_cnt[:, 0, 1]
-                    for xi, yi in zip(xr.astype(int), yr.astype(int)):
-                        if 0 <= xi < w_e and 0 <= yi < h_e:
-                            curve_img[yi, xi] = (0, 255, 0)
+                    #for xi, yi in zip(xr.astype(int), yr.astype(int)):
+                    #    if 0 <= xi < w_e and 0 <= yi < h_e:
+                    #        curve_img[yi, xi] = (0, 255, 0)
 
                     idx_right = np.argmin(np.abs(yr - target[1]))    # Find closest index in yl and yr to y_target
                     x_right = xr[idx_right]     # Get corresponding x positions
@@ -407,7 +423,7 @@ class Test(Node):
 
                 pixel_x = int((x_left + x_right) / 2.0)
             
-            cv2.circle(curve_img, (pixel_x, pixel_y), 3, (0, 0, 255), -1)
+            #cv2.circle(curve_img, (pixel_x, pixel_y), 3, (0, 0, 255), -1)
 
             pose.pose.position.x = current_position[0] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][0]  # x coordinate in world frame
             pose.pose.position.y = current_position[1] + self.vision_calc.grid_coordinates[y1 + pixel_y, x1 + pixel_x][1]  # y coordinate in world frame 
@@ -427,8 +443,8 @@ class Test(Node):
             pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)
 
-        cv2.imshow("Contours", curve_img)
-        cv2.waitKey(0)
+        #cv2.imshow("Contours", curve_img)
+        #cv2.waitKey(0)
 
         # Publisher for the occupancy grid
         self.publish_grid()
@@ -480,29 +496,14 @@ class Test(Node):
         else:
             print("Image not saved.")
 
-    def publish_grid(self):
-        # Example occupancy grid (replace with your logic as needed)
-        resolution = 0.05
-        x_min, x_max = -35.0, +35.0
-        y_min, y_max = -35.0, +35.0
-        width  = int((x_max - x_min) / resolution)
-        height = int((y_max - y_min) / resolution)
-
-        grid = OccupancyGrid()
-        grid.header = Header()
-        grid.header.frame_id = "odom"
-        grid.info.resolution = resolution
-        grid.info.width  = width
-        grid.info.height = height
-        grid.info.origin.position.x = 3.0
-        grid.info.origin.position.y = 4.0
-        grid.info.origin.position.z = 0.0
-
-        # Example: all unknown
-        data = np.full((height, width), -1, dtype=np.int8)
-        grid.data = data.flatten().tolist()
-
-        self.grid_pub.publish(grid)
+    def publish_grid(self, update_information=None):
+        occupancy_grid = OccupancyGrid()
+        if update_information is None:
+            self.grid.header.stamp = self.get_clock().now().to_msg()
+            self.grid_pub.publish(self.grid)
+        else:
+            raise NotImplementedError("Grid update functionality not yet implemented")
+        
         self.get_logger().info("Published occupancy grid to /lane_grid")
 
     def goal_response_callback(self, future):
@@ -610,15 +611,23 @@ if __name__ == '__main__':
 
     single_image_flag = True
     grid_flag = False
+    test_timing_flag = True
 
     rclpy.init()
 
-    if grid_flag:
-        # Start the occupancy grid publisher
-        grid_node = LaneGridPublisher()
-        grid_node.get_logger().info("LaneGridPublisher has been started.")
-        rclpy.spin(grid_node)
-        grid_node.destroy_node()
+    if test_timing_flag:
+        import time
+
+        test_node = Test()
+        print("After init")
+        image = cv2.imread('./saved_clean_track_images/image_1749133787_843306938.png') 
+
+        start_time = time.perf_counter()
+        test_node.detect_lanes(image)
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+        print(f"Execution time: {execution_time:.6f} seconds")
+        
     else:
         test_node = Test()
         test_node.get_logger().info("Test node has been started.")
