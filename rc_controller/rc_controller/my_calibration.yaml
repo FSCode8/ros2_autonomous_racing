@@ -1,0 +1,20 @@
+image_width: 1280
+image_height: 960
+camera_name: pylon_camera
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [587.02559142, 0., 632.03759266, 0., 587.22159019, 512.96361401, 0., 0., 1.]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-3.29641569e-01, 1.37815847e-01, 4.94936421e-04, -6.79209203e-05, -3.06499684e-02]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [587.02559142, 0., 632.03759266, 0., 0., 587.22159019, 512.96361401, 0., 0., 0., 1., 0.]
