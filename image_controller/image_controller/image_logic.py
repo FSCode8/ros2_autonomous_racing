@@ -55,7 +55,7 @@ class ImageTransformer(Node):
         self.image_topic_name = '/image_raw'
         self.toggle_image_processing = True  # Toggle image processing on/off 
 
-        self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack 
+        self.Driving_Stack_Existing = True  # Flag if there is the full simulation with the nav2 stack 
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -86,7 +86,7 @@ class ImageTransformer(Node):
         self.grid.info.origin.position.y = 0.0
         self.grid.info.origin.position.z = 0.0
 
-        data = np.full((height, width), -1, dtype=np.int8) # All unknown
+        data = np.full((height, width), 0, dtype=np.int8) # All unknown
         self.grid.data = data.ravel().tolist()
 
         # Occupancy grid publisher
@@ -258,7 +258,7 @@ class ImageTransformer(Node):
             y_max_point = cnt[idx, 0, :]
             y_max_point_array.append(y_max_point)
 
-            if len(cnt)>100 and y_max_point[1]>target[1]//2: # filter out small or wrongcontours
+            if len(cnt)>100 and y_max_point[1]>target[1]//3: # filter out small or wrongcontours
                 if y_max_point[0] < target[0]:
                     left_dist = np.linalg.norm(target_l-y_max_point)
                     if left_dist < left_min:
@@ -308,22 +308,25 @@ class ImageTransformer(Node):
 
         # Create the path
         path_msg.poses = []
-        for i in range(7):
+        only_one = False
+        for i in range(6):
             pose = PoseStamped()
             pose.header.stamp = path_msg.header.stamp
             pose.header.frame_id = "odom"
 
-            pixel_y = h_e - (i+1) * 60  
+            pixel_y = h_e - (i+2) * 60  
 
             # NOTE: Rotation is not considered yet 
 
             if x_left == -1 and x_right == -1:
+                pixel_y = h_e // 2 
                 pixel_x = int(w_e / 2.0)  # Default to center if both sides are missing
             elif x_left == -1:
-                pixel_x = 0
+                pixel_y = h_e // 2
+                pixel_x = 0 + 120
             elif x_right == -1:
-                pixel_x = int(w_e - 1)
-
+                pixel_y = h_e // 2
+                pixel_x = int(w_e - 1) - 120
             else:
                 idx_left = np.argmin(np.abs(yl - pixel_y))     # Find closest index in yl to y_target
                 x_left = xl[idx_left]   # Get corresponding x positions
@@ -352,9 +355,12 @@ class ImageTransformer(Node):
 
             pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)
+
+            if only_one:
+                break
         
-        #cv2.imshow("Contours", contours_img)
-        #cv2.waitKey(1)
+        cv2.imshow("Contours", contours_img)
+        cv2.waitKey(1)
 
         # Publisher for the occupancy grid
         self.publish_grid()

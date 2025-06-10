@@ -9,7 +9,8 @@ def generate_launch_description():
             executable='controller_server',
             name='controller_server',
             output='screen',
-            parameters=['src/planning2/config/controller_server.yaml']
+            parameters=['src/planning2/config/controller_server.yaml'],
+            arguments=['--ros-args', '-p', 'use_sim_time:=true']
         ),
         TimerAction(
             period=2.0,
