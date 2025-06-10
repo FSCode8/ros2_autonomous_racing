@@ -130,7 +130,7 @@ class Test(Node):
                     translation_cam_to_world=translation_vector
                 )
 
-                self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,self.cam_height,0]), test_vec_worldframe=np.array([0, 0, self.cam_height]))
+                #self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,self.cam_height,0]), test_vec_worldframe=np.array([0, 0, self.cam_height]))
 
                 self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
             
@@ -610,8 +610,7 @@ class Test(Node):
 if __name__ == '__main__':
 
     single_image_flag = True
-    grid_flag = False
-    test_timing_flag = True
+    test_timing_flag = False
 
     rclpy.init()
 
@@ -635,9 +634,14 @@ if __name__ == '__main__':
             #image = cv2.imread('./saved_images/image_1747926141_543872257.png')  
             #image = cv2.imread('./saved_images/image_1747926103_906651227.png')  
             
-            image = cv2.imread('./saved_clean_track_images/image_1749133787_843306938.png') 
+            print
+            print(test_node.vision_calc.grid_coordinates[test_node.image_height-1, test_node.image_width//2-20])
+            image = cv2.imread('./measurement_images/image_1749135761_55109394.png') 
             #image = cv2.imread('./manually_saved_images/saved_image_00012.png')
             # Check if the image was loaded successfully
+
+            cv2.imshow("Image", image)
+            cv2.waitKey(0)
             if image is None:
                 print("Error: Could not read the image.")
             else:

@@ -39,7 +39,7 @@ class VisionCalculation:
         self.translation_cam_to_world = translation_cam_to_world 
 
         # compute vector nc
-        self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -self.vehicle.cam_height])
+        self.world_normal_camframe = self.rotation_cam_to_world.T @ np.array([0, 0, -self.vehicle.cam_height])
 
         self.grid_coordinates = self.precompute_grid(pitch_angle=0)
 
@@ -96,7 +96,7 @@ class VisionCalculation:
         if -22.5 <= alpha <= 22.5: 
             dist = vec_camframe[2] -1
         elif -90 <= alpha <= 90:
-            dist = np.sqrt(vec_camframe[0]**2 + vac_camframe[1]**2)
+            dist = np.sqrt(vec_camframe[0]**2 + vec_camframe[1]**2)
         else:
             raise ValueError("alpha must be in the range [-90, 90]")
         #dist = np.sqrt(dist_hypo**2 - self.vehicle.cam_height**2) - len_vehicle_front - len_vehicle_shadow
