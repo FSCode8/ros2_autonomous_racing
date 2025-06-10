@@ -193,7 +193,7 @@ ControllerServer::on_configure(const rclcpp_lifecycle::State & /*state*/)
     "Controller Server has %s controllers available.", controller_ids_concat_.c_str());
 
   odom_sub_ = std::make_unique<nav_2d_utils::OdomSubscriber>(node);
-  vel_publisher_ = create_publisher<geometry_msgs::msg::TwistStamped>("ackermann_steering_controller/reference", 1);
+  vel_publisher_ = create_publisher<geometry_msgs::msg::TwistStamped>("raw_drive_commands", 1);
 
   // Create the action server that we implement with our followPath method
   action_server_ = std::make_unique<ActionServer>(

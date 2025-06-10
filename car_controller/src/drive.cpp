@@ -49,7 +49,7 @@ public:
 
     // Subscriber für die eingehende TwistStamped Nachricht
     subscription_ = this->create_subscription<geometry_msgs::msg::TwistStamped>(
-      "platzhalter/reference", 10,
+      "raw_drive_commands", 10,
       std::bind(&Drive::topic_callback, this, std::placeholders::_1));
 
     // Subscriber für das Not-Aus Topic
