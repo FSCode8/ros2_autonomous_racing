@@ -24,7 +24,7 @@
           <geometry>
             <plane>
               <normal>0 0 1</normal>
-              <size>100 100</size>
+              <size>30 30</size>
             </plane>
           </geometry>
           <surface>
@@ -39,7 +39,7 @@
           <geometry>
             <plane>
               <normal>0 0 1</normal>
-              <size>100 100</size>
+              <size>30 30</size>
             </plane>
           </geometry>
           <material>
@@ -49,7 +49,7 @@
             <!-- <emissive>0.1 0.1 0.1 1</emissive> <!-- Slight glow to improve visibility -->-->
             <pbr>
               <metal>
-                <albedo_map>file:///root/ros2_autonomous_racing/src/ros2_ackermann_gazebo/world/racetrack.png</albedo_map>
+                <albedo_map>racetrack.png</albedo_map>
               </metal>
             </pbr>
           </material>

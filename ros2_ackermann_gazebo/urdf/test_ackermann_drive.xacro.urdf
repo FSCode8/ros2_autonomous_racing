@@ -6,11 +6,14 @@
   <material name="Grey">
     <color rgba="0.8 0.8 0.8 1" />
   </material>
-  <material name="Orange">
-    <color rgba="1 0.6 0 1" />
+  <material name="Red">
+    <color rgba="1 0 0 1" />
   </material>
   <material name="White">
     <color rgba="1 1 1 1" />
+  </material>
+  <material name="Blue">
+    <color rgba="0 0.5 0.8 1" />
   </material>
 
   <link name="base_link" />
@@ -19,15 +22,15 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.05 0.05 0.05"/>
+        <box size="0.01 0.01 0.01"/>
       </geometry>
     </collision>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.05 0.05 0.05"/>
+        <box size="0.01 0.01 0.01"/>
       </geometry>
-      <material name="Orange"/>
+      <material name="Blue"/>
     </visual>
     <inertial>
       <mass value="1e-5"/>
@@ -40,14 +43,14 @@
   <joint name="camera_optical_joint" type="fixed">
     <!-- these values have to be these values otherwise the gazebo camera image
         won't be aligned properly with the frame it is supposedly originating from -->
-    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="0 0 0"/>
+    <origin rpy="-1.5707963267948966 0 -1.5707963267948966" xyz="-0.000029859 0.00012 0"/>
     <parent link="camera_link"/>
     <child link="camera_link_optical"/>
   </joint>
   <joint name="camera_joint" type="fixed">
     <!-- these values have to be these values otherwise the gazebo camera image
         won't be aligned properly with the frame it is supposedly originating from -->
-    <origin rpy="0 0 0" xyz="1 0 1"/>
+    <origin rpy="0 0 0" xyz="0 0 0.23"/>
     <parent link="base_link"/>
     <child link="camera_link"/>
   </joint>
@@ -58,41 +61,42 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="2 1 0.5" />
+        <box size="0.6 0.3 0.04" />
       </geometry>
     </collision>
 
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="2 1 0.5" />
+        <box size="0.5 0.3 0.002" />
       </geometry>
-      <material name="Orange" />
+      <material name="Grey" />
     </visual>
 
     <inertial>
-      <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="100" />
-      <inertia ixx="10.4" ixy="0.0" ixz="0.0" iyy="35.4" iyz="0.0" izz="41.66" />
-    </inertial>
-  </link>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="100" />
+        <inertia ixx="10.4" ixy="0.0" ixz="0.0" iyy="35.4" iyz="0.0" izz="41.66" />
+  </inertial>
+</link>
 
-  <joint name="chassis_joint" type="fixed">
-    <origin xyz="0.8 0 0.5" rpy="0 0 0" />
+    <joint name="chassis_joint" type="fixed">
+    <origin xyz="-0.08 0 0.05" rpy="0 0 0" />
+    <!-- 0.03 (Bodenfreiheit) + 0.04/2 (Hälfte der Höhe) = 0.05 -->
     <parent link="base_link" />
     <child link="chassis" />
-  </joint>
+</joint>
 
   <!-- rear left wheel Link -->
   <link name="rear_left_wheel">
     <collision>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
     </collision>
     <visual>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
       <material name="Black" />
     </visual>
@@ -104,7 +108,7 @@
   </link>
 
   <joint name="rear_left_wheel_joint" type="continuous">
-    <origin xyz="-0.8 0.5 -0.2" rpy="-1.57 0 0" />
+    <origin xyz="-0.18 0.1301 -0.00" rpy="-1.57 0 0" />
     <parent link="chassis" />
     <child link="rear_left_wheel" />
     <axis xyz="0 0 1" />
@@ -115,12 +119,12 @@
   <link name="rear_right_wheel">
     <collision>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
     </collision>
     <visual>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
       <material name="Black" />
     </visual>
@@ -131,7 +135,7 @@
   </link>
 
   <joint name="rear_right_wheel_joint" type="continuous">
-    <origin xyz="-0.8 -0.5 -0.2" rpy="-1.57 0 0" />
+    <origin xyz="-0.18 -0.1301 -0.00" rpy="-1.57 0 0" />
     <parent link="chassis" />
     <child link="rear_right_wheel" />
     <axis xyz="0 0 1" />
@@ -147,7 +151,7 @@
   </link>
 
   <joint name="left_wheel_steering_joint" type="revolute">
-    <origin xyz="0.9 -0.5 -0.2" rpy="1.57 0 0" />
+    <origin xyz="0.18 -0.1301 -0.00" rpy="1.57 0 0" />
     <parent link="chassis" />
     <child link="left_wheel_steering" />
     <axis xyz="0 1 0" />
@@ -164,7 +168,7 @@
   </link>
 
   <joint name="right_wheel_steering_joint" type="revolute">
-    <origin xyz="0.9 0.5 -0.2" rpy="1.57 0 0" />
+    <origin xyz="0.18 0.1301 -0.00" rpy="1.57 0 0" />
     <parent link="chassis" />
     <child link="right_wheel_steering" />
     <axis xyz="0 1 0" />
@@ -176,12 +180,12 @@
   <link name="front_left_wheel">
     <collision>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
     </collision>
     <visual>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
       <material name="Black" />
     </visual>
@@ -203,12 +207,12 @@
   <link name="front_right_wheel">
     <collision>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
     </collision>
     <visual>
       <geometry>
-        <cylinder length="0.08" radius="0.3" />
+        <cylinder length="0.04" radius="0.05" />
       </geometry>
       <material name="Black" />
     </visual>
@@ -260,10 +264,10 @@
       <update_rate>30.0</update_rate>
       <topic>image_raw</topic>
       <camera name="head">
-        <horizontal_fov>1.3962634</horizontal_fov>
+        <horizontal_fov>1.657088793</horizontal_fov>
         <image>
-          <width>800</width>
-          <height>800</height>
+          <width>1280</width>
+          <height>960</height>
           <format>R8G8B8</format>
         </image>
         <clip>
