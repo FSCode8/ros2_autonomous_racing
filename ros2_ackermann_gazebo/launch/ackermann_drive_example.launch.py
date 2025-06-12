@@ -90,7 +90,7 @@ def generate_launch_description():
             #    [FindPackageShare('ros2_ackermann_gazebo'),
             #     'world', 'example_track2.sdf']
             #)])]),
-            launch_arguments=[('gz_args', [' -r -v 4 /root/ros2_autonomous_racing/src/ros2_ackermann_gazebo/world/emtpy_export.sdf'])]),
+            launch_arguments=[('gz_args', [' -r -v 4 /home/fscode8/ros2_autonomous_racing/src/ros2_ackermann_gazebo/world/emtpy_export.sdf'])]),
 
         RegisterEventHandler(
             event_handler=OnProcessExit(
