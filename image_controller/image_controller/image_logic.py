@@ -258,7 +258,7 @@ class ImageTransformer(Node):
             y_max_point = cnt[idx, 0, :]
             y_max_point_array.append(y_max_point)
 
-            if len(cnt)>100 and y_max_point[1]>target[1]//3: # filter out small or wrongcontours
+            if len(cnt)>100 and y_max_point[1]>target[1]//5: # filter out small or wrongcontours
                 if y_max_point[0] < target[0]:
                     left_dist = np.linalg.norm(target_l-y_max_point)
                     if left_dist < left_min:
@@ -309,24 +309,27 @@ class ImageTransformer(Node):
         # Create the path
         path_msg.poses = []
         only_one = False
-        for i in range(6):
+        for i in range(5):
             pose = PoseStamped()
             pose.header.stamp = path_msg.header.stamp
             pose.header.frame_id = "odom"
 
-            pixel_y = h_e - (i+2) * 60  
+            pixel_y = h_e - (i+1) * (70 + 15-(i*2))  
 
             # NOTE: Rotation is not considered yet 
 
             if x_left == -1 and x_right == -1:
                 pixel_y = h_e // 2 
-                pixel_x = int(w_e / 2.0)  # Default to center if both sides are missing
+                pixel_x = int(w_e / 2.0) + 20  # Default to center if both sides are missing
+                only_one = True
             elif x_left == -1:
-                pixel_y = h_e // 2
-                pixel_x = 0 + 120
+                pixel_y = h_e // 2 + 20
+                pixel_x = 0 + 150
+                only_one = True
             elif x_right == -1:
-                pixel_y = h_e // 2
-                pixel_x = int(w_e - 1) - 120
+                pixel_y = h_e // 2 + 20
+                pixel_x = int(w_e - 1) - 150
+                only_one = True
             else:
                 idx_left = np.argmin(np.abs(yl - pixel_y))     # Find closest index in yl to y_target
                 x_left = xl[idx_left]   # Get corresponding x positions
@@ -351,7 +354,10 @@ class ImageTransformer(Node):
                 dy = pose.pose.position.y - current_position[1]
             
             # Calculate yaw angle
-            yaw = math.atan2(dy, dx)
+            if only_one:
+                yaw = math.atan2(dy, dx) * 1.2
+            else:
+                yaw = math.atan2(dy, dx)
 
             pose.pose.orientation.w = yaw  # No rotation
             path_msg.poses.append(pose)

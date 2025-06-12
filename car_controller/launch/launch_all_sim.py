@@ -5,11 +5,7 @@ from ament_index_python.packages import get_package_share_directory
 import os
 
 def generate_launch_description():
-    ackermann_launch = os.path.join(
-        get_package_share_directory('ros2_ackermann_gazebo'),
-        'launch',
-        'ackermann_drive_example.launch.py'
-    )
+   
     nav2_controller_launch = os.path.join(
         get_package_share_directory('nav2_controller'),
         'launch',
@@ -22,9 +18,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([ackermann_launch])
-        ),
+
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([nav2_controller_launch])
         ),

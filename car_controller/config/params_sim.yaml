@@ -26,10 +26,10 @@ drive:
     angular_y_min: -1000.0
     angular_y_max: 1000.0
 
-    angular_z_coeff: 1.0
+    angular_z_coeff: 0.2
     angular_z_offset: 0.0
-    angular_z_min: -1000.0
-    angular_z_max: 1000.0
+    angular_z_min: -13.0
+    angular_z_max: 13.0
 
     controller_type: "ackermann"
     output_frame_id: "drive"

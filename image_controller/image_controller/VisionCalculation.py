@@ -39,7 +39,7 @@ class VisionCalculation:
         self.translation_cam_to_world = translation_cam_to_world 
 
         # compute vector nc
-        self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -self.vehicle.cam_height])
+        self.world_normal_camframe = np.linalg.inv(self.rotation_cam_to_world) @ np.array([0, 0, -1])
 
         self.grid_coordinates = self.precompute_grid(pitch_angle=0)
 
