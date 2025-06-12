@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from image_controller.camera_software import CameraGeometry
-from image_controller.VisionCalculation import Camera
-from image_controller.VisionCalculation import VehicleGeometry
-from image_controller.VisionCalculation import VisionCalculation
+from perception.camera_software import CameraGeometry
+from perception.VisionCalculation import Camera
+from perception.VisionCalculation import VehicleGeometry
+from perception.VisionCalculation import VisionCalculation
 
 import rclpy
 from rclpy.node import Node
@@ -58,11 +58,11 @@ class Test(Node):
         # Vehicle constants
         self.cam_height = 0.23
         self.len_vehicle_front = 0.3
-        self.len_vehicle_shadow = 0.4 # ?
+        self.len_vehicle_shadow = 0.3
         self.image_height = 960
         self.image_width = 1280
 
-        self.image_topic_name = '/image_raw'#'/my_camera/pylon_ros2_camera_node/image_rect' 
+        self.image_topic_name = '/image_raw' #'/my_camera/pylon_ros2_camera_node/image_rect' 
 
         self.toggle_image_processing = True  # Toggle image processing on/off
         
@@ -109,8 +109,6 @@ class Test(Node):
         # Action client for FollowPath
         self.action_client = ActionClient(self, FollowPath, '/follow_path')
         
-        #self.get_logger().info("FollowPath action server available!")
-
         if image_bag_flag:
 
             if full_setup_flag:
@@ -118,8 +116,8 @@ class Test(Node):
                 vehicle_obj = VehicleGeometry(cam_height=self.cam_height , len_vehicle_shadow=self.len_vehicle_shadow, len_vehicle_front=self.len_vehicle_front)
             
                 rotation_matrix = np.array([[0, 0, 1],
-                            [-1, 0, 0],
-                            [0, -1, 0]])
+                                            [-1, 0, 0],
+                                            [0, -1, 0]])
 
                 translation_vector = np.array([0, 0, self.cam_height]) 
 
@@ -154,7 +152,9 @@ class Test(Node):
             # Wait for the initial data
             self.get_logger().info('Waiting for initial data from topic...')
         self.get_logger().info("Init finished")
-        #self.action_client.wait_for_server()
+        
+        if self.Driving_Stack_Existing:
+            self.action_client.wait_for_server()
 
 
     def _initial_data_callback(self, msg):
@@ -211,11 +211,6 @@ class Test(Node):
 
         self.vision_calc.test_camera_geometry(test_vec_camframe=np.array([0,self.cam_height,0]), test_vec_worldframe=np.array([0, 0, self.cam_height]))
 
-        print("POINT:")
-        print(self.vision_calc.grid_coordinates[799, 400])
-        print(self.vision_calc.grid_coordinates[401, 400])
-        print(self.vision_calc.grid_coordinates[0, 400])
-
         self.min_carless_pixel = int(self.vision_calc.get_min_carless_pixel()[1]) 
         
         self.subscription = self.create_subscription(
@@ -232,9 +227,14 @@ class Test(Node):
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except CvBridgeError as e:
             self.get_logger().error(f'CvBridge Error: {e}')
+        
+        self.detect_lanes(cv_image)
+        
+        #self.warp_image(cv_image)
+        
         #self.test(cv_image)
         #self.image_viewer(cv_image)
-        self.image_saver(cv_image)
+        #self.image_saver(cv_image)
         return
 
     def detect_lanes(self, image):
@@ -404,9 +404,6 @@ class Test(Node):
 
             pixel_y = h_e - (i+1) * 60  
 
-            # TODO: Add Logic for the case that left/right boundary goes until right/left side of the image -> point should be outside of the image
-            # NOTE: Rotation is not considered yet 
-
             if x_left == -1 and x_right == -1:
                 pixel_x = int(w_e / 2.0)  # Default to center if both sides are missing
             elif x_left == -1:
@@ -464,12 +461,9 @@ class Test(Node):
         #h, w = image.shape[:2]
 
         #cv2.circle(image, (w//2, h//2), 5, (0, 0, 255), -1)
-        # show
-        h_e, w_e, _ = image.shape
-        ("distances:", h_e, w_e)
-        cv2.rectangle(image, ((w_e//2)-(w_e//4), h_e-20), ((w_e//2)+(w_e//4), h_e-1), (0,0,0), -1)
 
         #cv2.imshow("Image", binary)
+
         cv2.imshow("Image Original", image)
 
         cv2.waitKey(0)
@@ -546,8 +540,6 @@ class Test(Node):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-        pass
-
     
     def test(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -592,23 +584,8 @@ class Test(Node):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-        return
-        cv2.imshow("Original Image", image)
-        cv2.waitKey(0)
-        cv2.imshow("edges", edges)
-        cv2.waitKey(0)
-        cv2.imshow("warp", new_warp)
-        cv2.waitKey(0)
-        cv2.imshow("Masked Lanes", masked_lanes)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-"""np.array([[0, 0, 1],
-            [-1, 0, 0],
-            [0, -1, 0]])"""
 
 if __name__ == '__main__':
-
     single_image_flag = True
     grid_flag = False
     test_timing_flag = True

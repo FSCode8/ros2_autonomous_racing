@@ -51,8 +51,8 @@ class ImageProcessor(Node):
         self.image_height = 960
         self.image_width = 1280
 
-        #self.image_topic_name = '/image_raw'
-        self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect'
+        self.image_topic_name = '/image_raw'
+        #self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect'
 
         self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack 
 
@@ -63,6 +63,12 @@ class ImageProcessor(Node):
         
         # Occupancy grid update publisher
         self.grid_update_pub = self.create_publisher(Image, '/occ_grid_update', 10)
+
+        # Distance for TTC publisher
+        self.publisher_col_dist = self.create_publisher(
+            Float32,
+            '/collision_distance',
+            10) 
 
         # Action client for FollowPath
         if self.Driving_Stack_Existing:
@@ -96,7 +102,7 @@ class ImageProcessor(Node):
             translation_cam_to_world=translation_vector
         )
 
-        self.lane_detector = LaneDetector(vision_obj=self.vision_calc, model_path='./ft44_model.pth')
+        self.lane_detector = LaneDetector(vision_obj=self.vision_calc, model_path='./src/perception/ft44_model.pth')
         self.get_logger().info(f'Lane Detector is using {self.lane_detector.device}')
 
         if self.Driving_Stack_Existing:
@@ -130,12 +136,17 @@ class ImageProcessor(Node):
             self.get_logger().error(f'CvBridge Error: {e}')
 
         self.send_local_path(cv_image)
+
+        # Compute and publish the minimum distance to an obstacle
+        if False:
+            self.publisher_col_dist(self.compute_min_distance(cv_image))
    
 
     def send_local_path(self, image):
+        # Create a path message using the classical method
+        #path_msg = self.lane_detector.create_path_oldschool(image=image, time_stamp=self.get_clock().now().to_msg())
 
-        # path_msg = self.lane_detector.create_path_oldschool(image=image, time_stamp=self.get_clock().now().to_msg())
-
+        # Create a path message using the cool method
         path_msg = self.lane_detector.create_path(image=image, time_stamp=self.get_clock().now().to_msg())
 
         goal_msg = FollowPath.Goal()
@@ -149,6 +160,27 @@ class ImageProcessor(Node):
         else:
             self.get_logger().info("Path would be send to FollowPath action server.")
         
+    def compute_min_distance(self, image):
+        # Convert the image to grayscale
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        # Threshold the image to create a binary image
+        _, binary = cv2.threshold(gray, 160, 200, cv2.THRESH_BINARY)
+
+        h, w = image.shape[:2]
+
+        # Initialize minimum distance
+        min_distance = float(-1)
+
+        # Loop through each contour
+        for v in range(self.min_carless_pixel, h//2+1, -1):  # from min_carless_pixel (about 650) to half of height inclusive
+            if binary[v, w//2] == 255:    # (v, u) == (y, x)
+                # Calculate the distance from the contour to the camera
+                min_distance = self.vision_calc.compute_dist(w//2, v) # (u, v)
+                
+                return min_distance   
+
+        return min_distance
 
     def publish_detected_information(self, update_information):
         self.get_logger().info("[To be implemented] Publish occupancy grid update to /occ_grid_update")

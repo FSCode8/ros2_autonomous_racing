@@ -77,7 +77,7 @@ class LaneGridPublisher(Node):
 
     def grid_update(self, msg):
         """
-        Update the grid with received perception data.
+        Update the grid with received perception data and current position.
         """
         pass
 

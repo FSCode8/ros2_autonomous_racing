@@ -1,4 +1,4 @@
-from VisionCalculation import *
+from perception.VisionCalculation import *
 
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
@@ -8,6 +8,8 @@ import torch
 import cv2
 
 import math
+
+from fastseg import MobileV3Small
 
 class LaneDetector():
     def __init__(self, vision_obj=None, model_path='./fastai_model.pth'):
@@ -88,13 +90,16 @@ class LaneDetector():
 
     def detect(self, img_array):
         model_output = self._predict(img_array)
-        class_map = np.argmax(model_output[0], axis=0)  # Shape: (960, 1280)
 
-        # Convert to uint8 for display (scale class IDs to visible range)
-        class_map_vis = (class_map * 255 // (model_output.shape[1] - 1)).astype(np.uint8)
+        # Visualize the segmentation output
+        if False:  # Set to True to visualize
+            class_map = np.argmax(model_output[0], axis=0)  # Shape: (960, 1280)
 
-        cv2.imshow('Segmentation Classes', class_map_vis)
-        cv2.waitKey(1)
+            # Convert to uint8 for display (scale class IDs to visible range)
+            class_map_vis = (class_map * 255 // (model_output.shape[1] - 1)).astype(np.uint8)
+
+            cv2.imshow('Segmentation Classes', class_map_vis)
+            cv2.waitKey(1)
 
         background, left, right = model_output[0,0,:,:], model_output[0,1,:,:], model_output[0,2,:,:] 
         return background, left, right
@@ -200,12 +205,12 @@ class LaneDetector():
 
         # Create the path
         path_msg.poses = []
-        for i in range(6):
+        for i in range(5):
             pose = PoseStamped()
             pose.header.stamp = path_msg.header.stamp
             pose.header.frame_id = "odom"
 
-            pixel_y = h_e - (i+2) * 60  
+            pixel_y = h_e - (i+1) * (70 + 10-(i*2))  
 
             # NOTE: Rotation is not considered yet 
 
@@ -227,8 +232,8 @@ class LaneDetector():
 
             cv2.circle(contours_img, (pixel_x, pixel_y), 5, (0, 255, 0), -1)
 
-            pose.pose.position.x = current_position[0] + self.vo.grid_coordinates[y1 + pixel_y, x1 + pixel_x][0]  # x coordinate in world frame
-            pose.pose.position.y = current_position[1] + self.vo.grid_coordinates[y1 + pixel_y, x1 + pixel_x][1]  # y coordinate in world frame 
+            pose.pose.position.x = current_position[0] + self.vo.grid_coordinates_old[y1 + pixel_y, x1 + pixel_x][0]  # x coordinate in world frame
+            pose.pose.position.y = current_position[1] + self.vo.grid_coordinates_old[y1 + pixel_y, x1 + pixel_x][1]  # y coordinate in world frame 
             pose.pose.position.z = current_position[2]  # z coordinate in world frame
             
             if i> 0:

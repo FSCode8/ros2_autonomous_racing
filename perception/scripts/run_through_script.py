@@ -15,4 +15,3 @@ def set_pose(name, x, y, z, qx=0, qy=0, qz=0, qw=1):
     ]
     subprocess.run(cmd)
 
-# Example usage

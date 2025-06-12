@@ -4,7 +4,7 @@
   <name>perception</name>
   <version>0.0.0</version>
   <description>Read the images from the camera topic and processes the images.</description>
-  <maintainer email="fes4097@thi.de">fscode8</maintainer>
+  <maintainer email="ferdinand.schleeh@outlook.de">fscode8</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake_python</buildtool_depend>
