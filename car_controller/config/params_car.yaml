@@ -36,10 +36,6 @@ drive:
 
 aeb:
   ros__parameters:
-<<<<<<< HEAD
     ttc_threshold: 2.0
-=======
-    ttc_threshold: 5.0
->>>>>>> e3af4822991780a21cd8b2e6cc98a060a4f1a198
     aeb_aktiv: 1
     controller_type: "bicycle"
