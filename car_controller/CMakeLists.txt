@@ -1,37 +1,52 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.5)
 project(car_controller)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
 endif()
 
-# find dependencies
+# Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 
-# === AEB Node hinzufügen ===
-add_executable(aeb_node src/aeb_node.cpp)
-ament_target_dependencies(aeb_node rclcpp geometry_msgs)
+set(dependencies
+  rclcpp
+  geometry_msgs
+  std_msgs
+  rcl_interfaces
+)
+
+# Include directories
+include_directories(include)
+
+# Add the Drive Node executable
+add_executable(drive src/drive.cpp)
+ament_target_dependencies(drive ${dependencies})
+
+# Add the SimulationDrive Node executable
+add_executable(simulation_drive src/simulation_drive.cpp)
+ament_target_dependencies(simulation_drive ${dependencies})
+
+# Add the AEB executable
+add_executable(aeb src/aeb.cpp)
+ament_target_dependencies(aeb ${dependencies}) 
 
 install(TARGETS
-  aeb_node
+  aeb
+  drive
+  simulation_drive
   DESTINATION lib/${PROJECT_NAME}
 )
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 
 ament_package()
