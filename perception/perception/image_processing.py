@@ -51,8 +51,8 @@ class ImageProcessor(Node):
         self.image_height = 960
         self.image_width = 1280
 
-        self.image_topic_name = '/image_raw'
-        #self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect'
+        #self.image_topic_name = '/image_raw'
+        self.image_topic_name = '/my_camera/pylon_ros2_camera_node/image_rect'
 
         self.Driving_Stack_Existing = False  # Flag if there is the full simulation with the nav2 stack 
 
