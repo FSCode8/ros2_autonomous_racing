@@ -11,16 +11,20 @@ controller_server:
       costmap_topic: ""
 
       # Controller parameters
-      desired_linear_vel: 3.0
-      min_linear_vel: 0.5
-      max_linear_vel: 2.0
-      max_lookahead_dist: 1.0
+      desired_linear_vel: 10.0
+      min_linear_vel: 1.5
+      max_linear_vel: 25.0
+      max_lookahead_dist: 0.5
       min_lookahead_dist: 0.3
       lookahead_time: 1.0
+      use_regulated_linear_velocity_scaling: true
+      regulated_linear_scaling_min_radius: 1.2
+      regulated_linear_scaling_min_speed: 0.15
       use_velocity_scaled_lookahead_dist: false
-      use_regulated_linea_velocity_scaling: true
-      curvature_lookahead_dist: 2.0
+      use_rotate_to_heading: true
+      curvature_lookahead_dist: 0.4
       transform_tolerance: 0.2
+      rotate_to_heading_angular_vel: 1.2
 
 local_costmap/local_costmap:
   ros__parameters:
